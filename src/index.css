@@ -1,24 +1,43 @@
 @import "tailwindcss";
 
 @theme {
-  --color-background: hsl(0 0% 100%);
-  --color-foreground: hsl(222.2 84% 4.9%);
-  --color-card: hsl(0 0% 100%);
-  --color-card-foreground: hsl(222.2 84% 4.9%);
-  --color-popover: hsl(0 0% 100%);
-  --color-popover-foreground: hsl(222.2 84% 4.9%);
-  --color-primary: hsl(221.2 83.2% 53.3%);
-  --color-primary-foreground: hsl(210 40% 98%);
-  --color-secondary: hsl(210 40% 96.1%);
-  --color-secondary-foreground: hsl(222.2 47.4% 11.2%);
-  --color-muted: hsl(210 40% 96.1%);
-  --color-muted-foreground: hsl(215.4 16.3% 46.9%);
-  --color-accent: hsl(210 40% 96.1%);
-  --color-accent-foreground: hsl(222.2 47.4% 11.2%);
-  --color-destructive: hsl(0 84.2% 60.2%);
-  --color-destructive-foreground: hsl(210 40% 98%);
-  --color-border: hsl(214.3 31.8% 91.4%);
-  --color-input: hsl(214.3 31.8% 91.4%);
-  --color-ring: hsl(221.2 83.2% 53.3%);
-  --radius: 0.5rem;
+  --color-background: var(--bg-color);
+  --color-foreground: var(--text-color);
+  --color-card: var(--surface-color);
+  --color-card-foreground: var(--text-color);
+  --color-primary: #709176; /* Dusty Olive */
+  --color-primary-foreground: #fdfdfd; /* White */
+  --color-muted: var(--surface-color);
+  --color-muted-foreground: var(--text-muted);
+  --color-border: var(--surface-color);
+  --color-input: var(--surface-color);
+  --radius: 0.75rem;
+}
+
+@layer base {
+  :root {
+    /* Light Mode */
+    --bg-color: #fdfdfd; /* White */
+    --surface-color: #f4f5f5; /* White Smoke */
+    --text-color: #1f1f23; /* Shadow Grey */
+    --text-muted: #39393b; /* Graphite */
+  }
+
+  .dark {
+    /* Dark Mode */
+    --bg-color: #1f1f23; /* Shadow Grey */
+    --surface-color: #39393b; /* Graphite */
+    --text-color: #fdfdfd; /* White */
+    --text-muted: #f4f5f5; /* White Smoke */
+  }
+
+  * {
+    border-color: var(--color-border);
+  }
+
+  body {
+    background-color: var(--color-background);
+    color: var(--color-foreground);
+    transition: background-color 0.3s ease, color 0.3s ease;
+  }
 }

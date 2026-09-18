@@ -2,9 +2,12 @@ import { useEffect, useState } from 'react';
 import { supabase } from './lib/supabase';
 import { Auth } from './components/Auth';
 import type { Session } from '@supabase/supabase-js';
+import { useTheme } from './hooks/useTheme';
+import { Sun, Moon } from 'lucide-react';
 
 function App() {
   const [session, setSession] = useState<Session | null>(null);
+  const { theme, toggleTheme } = useTheme();
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -25,16 +28,24 @@ function App() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-4">
-      <div className="bg-white p-8 rounded-xl shadow-lg border border-gray-100 max-w-md w-full text-center space-y-4">
-        <h1 className="text-2xl font-bold text-gray-900">¡Bienvenido a Daily Games Hub!</h1>
-        <p className="text-gray-600">Has iniciado sesión exitosamente.</p>
-        <p className="text-sm font-medium text-blue-600 bg-blue-50 p-2 rounded-lg break-all">
+    <div className="min-h-screen flex flex-col items-center justify-center p-4 relative">
+      <button 
+        onClick={toggleTheme} 
+        className="absolute top-6 right-6 p-2 rounded-full bg-card border border-border shadow-sm text-foreground hover:bg-muted transition-colors"
+        aria-label="Alternar tema"
+      >
+        {theme === 'light' ? <Moon className="w-5 h-5" /> : <Sun className="w-5 h-5" />}
+      </button>
+
+      <div className="bg-card p-8 rounded-xl shadow-lg border border-border max-w-md w-full text-center space-y-4">
+        <h1 className="text-2xl font-bold text-foreground">¡Bienvenido a Daily Games Hub!</h1>
+        <p className="text-muted-foreground">Has iniciado sesión exitosamente.</p>
+        <p className="text-sm font-medium text-primary bg-primary/10 p-2 rounded-lg break-all">
           {session.user.email}
         </p>
         <button
           onClick={() => supabase.auth.signOut()}
-          className="mt-6 w-full py-2 px-4 border border-transparent text-sm font-medium rounded-lg text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 transition-colors"
+          className="mt-6 w-full py-2 px-4 border border-transparent text-sm font-medium rounded-lg text-destructive-foreground bg-destructive hover:opacity-90 transition-colors"
         >
           Cerrar Sesión
         </button>

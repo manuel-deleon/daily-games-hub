@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { supabase } from '../lib/supabase';
-import { Mail, Lock, Loader2 } from 'lucide-react';
+import { Mail, Lock, Loader2, Sun, Moon } from 'lucide-react';
+import { useTheme } from '../hooks/useTheme';
 
 export function Auth() {
   const [isLoading, setIsLoading] = useState(false);
@@ -9,6 +10,8 @@ export function Auth() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+
+  const { theme, toggleTheme } = useTheme();
 
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -57,13 +60,21 @@ export function Auth() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-md w-full space-y-8 bg-white p-8 rounded-xl shadow-lg border border-gray-100">
+    <div className="min-h-screen flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8 relative">
+      <button 
+        onClick={toggleTheme} 
+        className="absolute top-6 right-6 p-2 rounded-full bg-card border border-border shadow-sm text-foreground hover:bg-muted transition-colors"
+        aria-label="Alternar tema"
+      >
+        {theme === 'light' ? <Moon className="w-5 h-5" /> : <Sun className="w-5 h-5" />}
+      </button>
+
+      <div className="max-w-md w-full space-y-8 bg-card p-8 rounded-xl shadow-lg border border-border">
         <div>
-          <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
+          <h2 className="mt-6 text-center text-3xl font-extrabold text-foreground">
             {isLogin ? 'Bienvenido de vuelta' : 'Crea tu cuenta'}
           </h2>
-          <p className="mt-2 text-center text-sm text-gray-600">
+          <p className="mt-2 text-center text-sm text-muted-foreground">
             Daily Games Hub
           </p>
         </div>
@@ -74,7 +85,7 @@ export function Auth() {
                 Correo Electrónico
               </label>
               <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <Mail className="h-5 w-5 text-gray-400" />
+                <Mail className="h-5 w-5 text-muted-foreground" />
               </div>
               <input
                 id="email-address"
@@ -82,7 +93,7 @@ export function Auth() {
                 type="email"
                 autoComplete="email"
                 required
-                className="appearance-none rounded-lg relative block w-full pl-10 px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-primary focus:border-primary focus:z-10 sm:text-sm"
+                className="appearance-none rounded-lg relative block w-full pl-10 px-3 py-2 border bg-background border-border placeholder-muted-foreground text-foreground focus:outline-none focus:ring-primary focus:border-primary focus:z-10 sm:text-sm"
                 placeholder="Correo Electrónico"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
@@ -93,7 +104,7 @@ export function Auth() {
                 Contraseña
               </label>
               <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <Lock className="h-5 w-5 text-gray-400" />
+                <Lock className="h-5 w-5 text-muted-foreground" />
               </div>
               <input
                 id="password"
@@ -101,7 +112,7 @@ export function Auth() {
                 type="password"
                 autoComplete="current-password"
                 required
-                className="appearance-none rounded-lg relative block w-full pl-10 px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-primary focus:border-primary focus:z-10 sm:text-sm"
+                className="appearance-none rounded-lg relative block w-full pl-10 px-3 py-2 border bg-background border-border placeholder-muted-foreground text-foreground focus:outline-none focus:ring-primary focus:border-primary focus:z-10 sm:text-sm"
                 placeholder="Contraseña"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
@@ -110,13 +121,13 @@ export function Auth() {
           </div>
 
           {error && (
-            <div className="text-red-500 text-sm text-center font-medium bg-red-50 p-2 rounded-lg">
+            <div className="text-destructive text-sm text-center font-medium bg-destructive/10 p-2 rounded-lg">
               {error}
             </div>
           )}
           
           {message && (
-            <div className="text-green-600 text-sm text-center font-medium bg-green-50 p-2 rounded-lg">
+            <div className="text-primary text-sm text-center font-medium bg-primary/10 p-2 rounded-lg">
               {message}
             </div>
           )}
@@ -125,7 +136,7 @@ export function Auth() {
             <button
               type="submit"
               disabled={isLoading}
-              className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-lg text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-70 transition-colors"
+              className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-lg text-primary-foreground bg-primary hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary disabled:opacity-70 transition-colors"
             >
               {isLoading ? (
                 <Loader2 className="w-5 h-5 animate-spin" />
@@ -141,10 +152,10 @@ export function Auth() {
         <div className="mt-6">
           <div className="relative">
             <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-gray-300" />
+              <div className="w-full border-t border-border" />
             </div>
             <div className="relative flex justify-center text-sm">
-              <span className="px-2 bg-white text-gray-500">O continúa con</span>
+              <span className="px-2 bg-card text-muted-foreground">O continúa con</span>
             </div>
           </div>
 
@@ -152,7 +163,7 @@ export function Auth() {
             <button
               onClick={handleGoogleAuth}
               disabled={isLoading}
-              className="w-full flex justify-center items-center py-2 px-4 border border-gray-300 rounded-lg shadow-sm bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors"
+              className="w-full flex justify-center items-center py-2 px-4 border border-border rounded-lg shadow-sm bg-card text-sm font-medium text-foreground hover:bg-muted focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary transition-colors"
             >
               <svg className="w-5 h-5 mr-2" viewBox="0 0 24 24">
                 <path
@@ -180,7 +191,7 @@ export function Auth() {
         <div className="text-center mt-4">
           <button
             onClick={() => setIsLogin(!isLogin)}
-            className="text-sm text-blue-600 hover:text-blue-500 font-medium transition-colors"
+            className="text-sm text-primary hover:opacity-80 font-medium transition-colors"
           >
             {isLogin
               ? '¿No tienes cuenta? Regístrate'
