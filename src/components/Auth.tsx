@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { supabase } from '../lib/supabase';
-import { Mail, Lock, Loader2, Sun, Moon } from 'lucide-react';
+import { Mail, Lock, Loader2, Sun, Moon, User, AtSign } from 'lucide-react';
 import { useTheme } from '../hooks/useTheme';
 
 export function Auth() {
@@ -8,6 +8,8 @@ export function Auth() {
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [fullName, setFullName] = useState('');
+  const [username, setUsername] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
 
@@ -21,15 +23,27 @@ export function Auth() {
 
     try {
       if (isLogin) {
+        // Al iniciar sesión, solo mandamos email y password
         const { error } = await supabase.auth.signInWithPassword({
           email,
           password,
         });
         if (error) throw error;
       } else {
+        // Al registrarnos, validamos que hayan puesto nombre y usuario
+        if (!fullName.trim() || !username.trim()) {
+          throw new Error('Por favor completa todos los campos.');
+        }
+
         const { error } = await supabase.auth.signUp({
           email,
           password,
+          options: {
+            data: {
+              full_name: fullName,
+              username: username,
+            },
+          },
         });
         if (error) throw error;
         setMessage('Revisa tu correo para confirmar tu cuenta.');
@@ -79,11 +93,48 @@ export function Auth() {
           </p>
         </div>
         <form className="mt-8 space-y-6" onSubmit={handleAuth}>
-          <div className="rounded-md shadow-sm -space-y-px">
-            <div className="relative mb-4">
-              <label htmlFor="email-address" className="sr-only">
-                Correo Electrónico
-              </label>
+          <div className="rounded-md shadow-sm -space-y-px flex flex-col gap-4">
+            
+            {!isLogin && (
+              <>
+                <div className="relative">
+                  <label htmlFor="fullName" className="sr-only">Nombre Completo</label>
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <User className="h-5 w-5 text-muted-foreground" />
+                  </div>
+                  <input
+                    id="fullName"
+                    name="fullName"
+                    type="text"
+                    required={!isLogin}
+                    className="appearance-none rounded-lg relative block w-full pl-10 px-3 py-2 border bg-background border-border placeholder-muted-foreground text-foreground focus:outline-none focus:ring-primary focus:border-primary focus:z-10 sm:text-sm"
+                    placeholder="Nombre Completo"
+                    value={fullName}
+                    onChange={(e) => setFullName(e.target.value)}
+                  />
+                </div>
+                
+                <div className="relative">
+                  <label htmlFor="username" className="sr-only">Nombre de Usuario</label>
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <AtSign className="h-5 w-5 text-muted-foreground" />
+                  </div>
+                  <input
+                    id="username"
+                    name="username"
+                    type="text"
+                    required={!isLogin}
+                    className="appearance-none rounded-lg relative block w-full pl-10 px-3 py-2 border bg-background border-border placeholder-muted-foreground text-foreground focus:outline-none focus:ring-primary focus:border-primary focus:z-10 sm:text-sm"
+                    placeholder="Nombre de Usuario (Username)"
+                    value={username}
+                    onChange={(e) => setUsername(e.target.value)}
+                  />
+                </div>
+              </>
+            )}
+
+            <div className="relative">
+              <label htmlFor="email-address" className="sr-only">Correo Electrónico</label>
               <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                 <Mail className="h-5 w-5 text-muted-foreground" />
               </div>
@@ -99,10 +150,9 @@ export function Auth() {
                 onChange={(e) => setEmail(e.target.value)}
               />
             </div>
+            
             <div className="relative">
-              <label htmlFor="password" className="sr-only">
-                Contraseña
-              </label>
+              <label htmlFor="password" className="sr-only">Contraseña</label>
               <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                 <Lock className="h-5 w-5 text-muted-foreground" />
               </div>
@@ -110,7 +160,7 @@ export function Auth() {
                 id="password"
                 name="password"
                 type="password"
-                autoComplete="current-password"
+                autoComplete={isLogin ? "current-password" : "new-password"}
                 required
                 className="appearance-none rounded-lg relative block w-full pl-10 px-3 py-2 border bg-background border-border placeholder-muted-foreground text-foreground focus:outline-none focus:ring-primary focus:border-primary focus:z-10 sm:text-sm"
                 placeholder="Contraseña"
