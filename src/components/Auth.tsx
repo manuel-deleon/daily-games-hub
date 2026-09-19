@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { supabase } from '../lib/supabase';
-import { Mail, Lock, Loader2, Sun, Moon, User, AtSign, Eye, EyeOff, Gamepad2 } from 'lucide-react';
+import { Mail, Lock, Loader2, Sun, Moon, User, AtSign, Eye, EyeOff } from 'lucide-react';
 import { useTheme } from '../hooks/useTheme';
 
 export function Auth() {
@@ -30,7 +30,7 @@ export function Auth() {
           redirectTo: `${window.location.origin}/profile`,
         });
         if (error) throw error;
-        setMessage('Revisa tu correo para el enlace de recuperación.');
+        setMessage('Check your email para el enlace de recuperación.');
       } else if (isLogin) {
         const { error } = await supabase.auth.signInWithPassword({
           email,
@@ -53,7 +53,7 @@ export function Auth() {
           },
         });
         if (error) throw error;
-        setMessage('Revisa tu correo para confirmar tu cuenta.');
+        setMessage('Check your email para confirmar tu cuenta.');
       }
     } catch (err: any) {
       setError(err.message || 'Ocurrió un error en la autenticación');
@@ -91,20 +91,8 @@ export function Auth() {
       </button>
 
       <div className="max-w-md w-full space-y-8 bg-card p-8 rounded-2xl shadow-xl border border-border">
-        <div className="flex flex-col items-center">
-          <div className="w-16 h-16 bg-primary/10 rounded-2xl flex items-center justify-center mb-6">
-            <Gamepad2 className="w-8 h-8 text-primary" />
-          </div>
-          <h2 className="text-center text-3xl font-extrabold text-foreground tracking-tight">
-            DailyPlay
-          </h2>
-          <p className="mt-2 text-center text-sm text-muted-foreground">
-            {isResettingPassword 
-              ? 'Recupera el acceso a tu cuenta'
-              : isLogin 
-                ? 'Tu hub diario de juegos web'
-                : 'Únete y compite con tus amigos'}
-          </p>
+        <div className="flex flex-col items-center mb-6">
+          <img src="/pwa-192x192.png" alt="App Logo" className="w-24 h-24 rounded-3xl shadow-md mb-2" />
         </div>
         
         <form className="mt-8 space-y-5" onSubmit={handleAuth}>
@@ -113,9 +101,9 @@ export function Auth() {
             {!isLogin && !isResettingPassword && (
               <>
                 <div className="space-y-1.5">
-                  <label htmlFor="fullName" className="text-sm font-medium text-foreground block">Nombre Completo</label>
+                  <label htmlFor="fullName" className="text-sm font-medium text-foreground block">Full Name</label>
                   <div className="relative">
-                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none">
                       <User className="h-5 w-5 text-muted-foreground" />
                     </div>
                     <input
@@ -123,8 +111,8 @@ export function Auth() {
                       name="fullName"
                       type="text"
                       required={!isLogin && !isResettingPassword}
-                      className="block w-full pl-10 px-3 py-2.5 border bg-background border-border rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all sm:text-sm"
-                      placeholder="Ej. Juan Pérez"
+                      className="block w-full pl-10 pr-3 py-2.5 border bg-background border-border rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all sm:text-sm"
+                      placeholder="e.g. John Doe"
                       value={fullName}
                       onChange={(e) => setFullName(e.target.value)}
                     />
@@ -132,9 +120,9 @@ export function Auth() {
                 </div>
                 
                 <div className="space-y-1.5">
-                  <label htmlFor="username" className="text-sm font-medium text-foreground block">Nombre de Usuario</label>
+                  <label htmlFor="username" className="text-sm font-medium text-foreground block">Username</label>
                   <div className="relative">
-                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none">
                       <AtSign className="h-5 w-5 text-muted-foreground" />
                     </div>
                     <input
@@ -142,7 +130,7 @@ export function Auth() {
                       name="username"
                       type="text"
                       required={!isLogin && !isResettingPassword}
-                      className="block w-full pl-10 px-3 py-2.5 border bg-background border-border rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all sm:text-sm"
+                      className="block w-full pl-10 pr-3 py-2.5 border bg-background border-border rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all sm:text-sm"
                       placeholder="Ej. juanperez"
                       value={username}
                       onChange={(e) => setUsername(e.target.value)}
@@ -153,9 +141,9 @@ export function Auth() {
             )}
 
             <div className="space-y-1.5">
-              <label htmlFor="email-address" className="text-sm font-medium text-foreground block">Correo Electrónico</label>
+              <label htmlFor="email-address" className="text-sm font-medium text-foreground block">Email Address</label>
               <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none">
                   <Mail className="h-5 w-5 text-muted-foreground" />
                 </div>
                 <input
@@ -164,7 +152,7 @@ export function Auth() {
                   type="email"
                   autoComplete="email"
                   required
-                  className="block w-full pl-10 px-3 py-2.5 border bg-background border-border rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all sm:text-sm"
+                  className="block w-full pl-10 pr-3 py-2.5 border bg-background border-border rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all sm:text-sm"
                   placeholder="ejemplo@correo.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
@@ -175,15 +163,15 @@ export function Auth() {
             {!isResettingPassword && (
               <div className="space-y-1.5">
                 <div className="flex items-center justify-between">
-                  <label htmlFor="password" className="text-sm font-medium text-foreground block">Contraseña</label>
+                  <label htmlFor="password" className="text-sm font-medium text-foreground block">Password</label>
                   {isLogin && (
                     <button type="button" onClick={() => setIsResettingPassword(true)} className="text-xs font-semibold text-primary hover:opacity-80 transition-opacity">
-                      ¿Olvidaste tu contraseña?
+                      Forgot password?
                     </button>
                   )}
                 </div>
                 <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none">
                     <Lock className="h-5 w-5 text-muted-foreground" />
                   </div>
                   <input
@@ -232,9 +220,9 @@ export function Auth() {
               ) : isResettingPassword ? (
                 'Enviar correo de recuperación'
               ) : isLogin ? (
-                'Iniciar Sesión'
+                'Sign In'
               ) : (
-                'Crear Cuenta'
+                'Create Account'
               )}
             </button>
           </div>
@@ -288,19 +276,19 @@ export function Auth() {
               onClick={() => setIsResettingPassword(false)}
               className="text-sm font-semibold text-primary hover:opacity-80 transition-colors"
             >
-              Volver al inicio de sesión
+              Back to sign in
             </button>
           )}
           
           {!isResettingPassword && (
             <p className="text-sm text-muted-foreground text-center">
-              {isLogin ? "¿No tienes una cuenta? " : "¿Ya tienes una cuenta? "}
+              {isLogin ? "Don't have an account? " : "Already have an account? "}
               <button
                 type="button"
                 onClick={() => setIsLogin(!isLogin)}
                 className="font-bold text-primary hover:opacity-80 transition-colors ml-1"
               >
-                {isLogin ? "Regístrate ahora" : "Inicia sesión"}
+                {isLogin ? "Sign up ahora" : "Sign in"}
               </button>
             </p>
           )}

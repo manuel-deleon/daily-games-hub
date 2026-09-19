@@ -1,11 +1,13 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
-import { User, AtSign, Loader2, Save, CheckCircle2, Flame, LogOut, Upload, Lock, KeyRound } from 'lucide-react';
+import { Loader2, Save, CheckCircle2, Flame, LogOut, Upload, KeyRound, Sun, Moon } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import type { Profile } from '../types';
+import { useTheme } from '../hooks/useTheme';
 
 export function Profile() {
   const navigate = useNavigate();
+  const { theme, toggleTheme } = useTheme();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSavingProfile, setIsSavingProfile] = useState(false);
@@ -87,7 +89,7 @@ export function Profile() {
       
       setProfile({ ...profile, username: username.trim(), full_name: fullName.trim(), avatar_url: finalAvatarUrl });
       setAvatarFile(null);
-      setMessage({ type: 'success', text: 'Perfil actualizado correctamente.' });
+      setMessage({ type: 'success', text: 'Profile actualizado correctamente.' });
       setTimeout(() => setMessage(null), 3000);
     } catch (err: any) {
       if (err.code === '23505') {
@@ -140,7 +142,7 @@ export function Profile() {
   return (
     <div className="max-w-xl mx-auto space-y-8 pb-10">
       <div className="text-center sm:text-left flex flex-col items-center sm:items-start">
-        <h2 className="text-3xl font-extrabold tracking-tight text-foreground">Tu Perfil</h2>
+        <h2 className="text-3xl font-extrabold tracking-tight text-foreground">Tu Profile</h2>
         <p className="text-muted-foreground mt-1 font-medium">Administra tu identidad y credenciales.</p>
       </div>
 
@@ -199,17 +201,14 @@ export function Profile() {
                 Nombre Completo
               </label>
               <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                  <User className="h-5 w-5 text-muted-foreground" />
-                </div>
                 <input
                   id="fullName"
                   type="text"
                   required
-                  placeholder="Ej. Juan Pérez"
                   value={fullName}
                   onChange={(e) => setFullName(e.target.value)}
-                  className="appearance-none rounded-xl relative block w-full pl-11 px-4 py-3 border bg-background border-border placeholder-muted-foreground text-foreground font-medium focus:outline-none focus:ring-2 focus:ring-primary shadow-sm transition-shadow"
+                  className="block w-full px-4 py-3 border bg-background border-border rounded-xl text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all sm:text-sm font-medium"
+                  placeholder="e.g. John Doe"
                 />
               </div>
             </div>
@@ -219,17 +218,14 @@ export function Profile() {
                 Nombre de Usuario
               </label>
               <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                  <AtSign className="h-5 w-5 text-muted-foreground" />
-                </div>
                 <input
                   id="username"
                   type="text"
                   required
-                  placeholder="Ej. juanperez123"
+                  placeholder="e.g. johndoe123"
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
-                  className="appearance-none rounded-xl relative block w-full pl-11 px-4 py-3 border bg-background border-border placeholder-muted-foreground text-foreground font-medium focus:outline-none focus:ring-2 focus:ring-primary shadow-sm transition-shadow"
+                  className="appearance-none rounded-xl relative block w-full px-4 py-3 border bg-background border-border placeholder-muted-foreground text-foreground font-medium focus:outline-none focus:ring-2 focus:ring-primary shadow-sm transition-shadow"
                 />
               </div>
             </div>
@@ -250,7 +246,7 @@ export function Profile() {
             className="w-full flex items-center justify-center py-3 px-6 text-sm font-bold rounded-xl text-primary-foreground bg-primary hover:opacity-90 disabled:opacity-50 transition-colors shadow-sm"
           >
             {isSavingProfile ? <Loader2 className="w-5 h-5 animate-spin mr-2" /> : <Save className="w-5 h-5 mr-2" />}
-            Guardar Cambios
+            Save Changes
           </button>
         </form>
       </div>
@@ -259,29 +255,26 @@ export function Profile() {
       <div className="bg-card border border-border rounded-3xl shadow-sm p-6 sm:p-8">
         <form onSubmit={handleUpdatePassword} className="space-y-6">
           <div>
-            <h3 className="text-lg font-extrabold text-foreground mb-1">Seguridad</h3>
+            <h3 className="text-lg font-extrabold text-foreground mb-1">Security</h3>
             <p className="text-sm text-muted-foreground font-medium">Actualiza tu contraseña.</p>
           </div>
 
           <div className="space-y-1.5">
             <label htmlFor="newPassword" className="text-sm font-bold text-foreground block">
-              Nueva Contraseña
+              New Password
             </label>
-            <div className="relative">
-              <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                <Lock className="h-5 w-5 text-muted-foreground" />
+              <div className="relative">
+                <input
+                  id="newPassword"
+                  type="password"
+                  required
+                  minLength={6}
+                  placeholder="Minimum 6 characters"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  className="appearance-none rounded-xl relative block w-full px-4 py-3 border bg-background border-border placeholder-muted-foreground text-foreground font-medium focus:outline-none focus:ring-2 focus:ring-primary shadow-sm transition-shadow"
+                />
               </div>
-              <input
-                id="newPassword"
-                type="password"
-                required
-                minLength={6}
-                placeholder="Mínimo 6 caracteres"
-                value={newPassword}
-                onChange={(e) => setNewPassword(e.target.value)}
-                className="appearance-none rounded-xl relative block w-full pl-11 px-4 py-3 border bg-background border-border placeholder-muted-foreground text-foreground font-medium focus:outline-none focus:ring-2 focus:ring-primary shadow-sm transition-shadow"
-              />
-            </div>
           </div>
 
           {passwordMessage && (
@@ -299,19 +292,42 @@ export function Profile() {
             className="w-full flex items-center justify-center py-3 px-6 text-sm font-bold rounded-xl text-foreground bg-background border border-border hover:bg-muted disabled:opacity-50 transition-colors shadow-sm"
           >
             {isSavingPassword ? <Loader2 className="w-5 h-5 animate-spin mr-2" /> : <KeyRound className="w-5 h-5 mr-2" />}
-            Actualizar Contraseña
+            Update Password
           </button>
         </form>
+      </div>
+
+      {/* Appearance Section */}
+      <div className="bg-card border border-border rounded-3xl shadow-sm p-6 sm:p-8">
+        <div>
+          <h3 className="text-lg font-extrabold text-foreground mb-1">Appearance</h3>
+          <p className="text-sm text-muted-foreground font-medium mb-6">Customize the look of your app.</p>
+        </div>
+        
+        <div className="flex items-center justify-between p-4 rounded-xl border border-border bg-background">
+          <div className="flex items-center space-x-3 text-foreground">
+            {theme === 'light' ? <Sun className="w-6 h-6 text-amber-500" /> : <Moon className="w-6 h-6 text-blue-400" />}
+            <span className="font-bold">Dark Mode</span>
+          </div>
+          <button
+            onClick={toggleTheme}
+            className={`relative inline-flex h-7 w-12 items-center rounded-full transition-colors focus:outline-none ${theme === 'dark' ? 'bg-primary' : 'bg-muted border border-border'}`}
+          >
+            <span
+              className={`inline-block h-5 w-5 transform rounded-full bg-white transition-transform ${theme === 'dark' ? 'translate-x-6' : 'translate-x-1'}`}
+            />
+          </button>
+        </div>
       </div>
 
       {/* Danger Zone / Sign Out */}
       <div className="pt-4">
         <button
           onClick={handleSignOut}
-          className="w-full flex items-center justify-center py-4 px-6 text-sm font-bold rounded-xl text-destructive bg-destructive/10 hover:bg-destructive hover:text-destructive-foreground transition-colors"
+          className="w-full flex items-center justify-center py-4 px-6 text-sm font-bold rounded-xl text-destructive bg-destructive/10 border border-destructive/20 hover:bg-destructive hover:text-destructive-foreground hover:shadow-md transition-all active:scale-95 cursor-pointer"
         >
           <LogOut className="w-5 h-5 mr-2" />
-          Cerrar Sesión
+          Sign Out
         </button>
       </div>
     </div>

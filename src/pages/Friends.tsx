@@ -98,7 +98,7 @@ export function Friends() {
     // 3. Obtener Ranking (Top 10 entre mis amigos y yo)
     const { data: rankingData } = await supabase
       .from('profiles')
-      .select('*')
+      .select('*, global_games(*)')
       .in('id', followingIds)
       .order('global_streak', { ascending: false });
 
@@ -117,7 +117,7 @@ export function Friends() {
     setIsSearching(true);
     const { data, error } = await supabase
       .from('profiles')
-      .select('*')
+      .select('*, global_games(*)')
       .ilike('username', `%${searchQuery.trim()}%`)
       .neq('id', currentUser)
       .limit(10);
@@ -158,19 +158,19 @@ export function Friends() {
     if (!currentUser) return;
 
     const { data: fGames } = await supabase
-      .from('games')
-      .select('*')
+      .from('user_games')
+      .select('*, global_games(*)')
       .eq('user_id', user.id);
     
     if (fGames) setUserGames(fGames);
 
     const { data: mGames } = await supabase
-      .from('games')
-      .select('url')
+      .from('user_games')
+      .select('global_game_id')
       .eq('user_id', currentUser);
     
     if (mGames) {
-      setMyGameUrls(new Set(mGames.map(g => g.url)));
+      setMyGameUrls(new Set(mGames.map(g => g.global_game_id)));
     }
     
     setIsLoadingCatalog(false);
@@ -181,17 +181,14 @@ export function Friends() {
     setCopyingId(game.id);
 
     const { error } = await supabase
-      .from('games')
+      .from('user_games')
       .insert({
-        user_id: currentUser,
-        name: game.name,
-        url: game.url,
-        color: game.color,
-        logo_url: game.logo_url
-      });
+          user_id: currentUser,
+          global_game_id: game.global_game_id
+        });
 
     if (!error) {
-      setMyGameUrls(prev => new Set(prev).add(game.url));
+      setMyGameUrls(prev => new Set(prev).add(game.global_game_id));
     }
     setCopyingId(null);
   };
@@ -202,7 +199,7 @@ export function Friends() {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4">
         <div>
-          <h2 className="text-3xl font-bold tracking-tight text-foreground">Comunidad</h2>
+          <h2 className="text-3xl font-bold tracking-tight text-foreground">Community</h2>
           <p className="text-muted-foreground mt-1">Conecta, compite y descubre nuevos juegos diarios.</p>
         </div>
         
@@ -252,7 +249,7 @@ export function Friends() {
         {activeTab === 'ranking' && (
           <div className="p-6">
             <div className="flex items-center justify-between mb-6">
-              <h3 className="text-xl font-bold">Top Global (Amigos)</h3>
+              <h3 className="text-xl font-bold">Top Global (Friends)</h3>
               {myRank && ranking.length > 0 && (
                 <div className="flex items-center bg-primary/10 text-primary px-3 py-1.5 rounded-lg font-bold text-sm">
                   <Hash className="w-4 h-4 mr-1" />
@@ -409,7 +406,7 @@ export function Friends() {
                           Devolver
                         </button>
                       ) : (
-                        <span className="text-sm font-bold text-muted-foreground px-4 py-2 bg-muted rounded-lg">Amigos</span>
+                        <span className="text-sm font-bold text-muted-foreground px-4 py-2 bg-muted rounded-lg">Friends</span>
                       )}
                     </div>
                   );
@@ -498,7 +495,7 @@ export function Friends() {
                 <div>
                   <h3 className="text-xl font-extrabold text-foreground leading-none mb-1">{selectedUser.username}</h3>
                   <div className="flex items-center space-x-2">
-                    <span className="text-sm text-muted-foreground font-medium">Catálogo de juegos diarios</span>
+                    <span className="text-sm text-muted-foreground font-medium">Catalog of juegos diarios</span>
                     <span className="text-muted-foreground">•</span>
                     <span className="text-sm font-bold text-orange-500 flex items-center">
                       <Flame className="w-3.5 h-3.5 mr-1" />
@@ -523,15 +520,15 @@ export function Friends() {
               ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   {userGames.map((game) => {
-                    const alreadyHaveIt = myGameUrls.has(game.url);
+                    const alreadyHaveIt = myGameUrls.has(game.global_game_id);
                     return (
-                      <div key={game.id} className="p-4 rounded-2xl flex flex-col justify-between h-36 transition-transform hover:-translate-y-1 shadow-sm border border-transparent" style={{ backgroundColor: game.color || '#333' }}>
+                      <div key={game.id} className="p-4 rounded-2xl flex flex-col justify-between h-36 transition-transform hover:-translate-y-1 shadow-sm border border-transparent" style={{ backgroundColor: (game.custom_color || game.global_games?.color || "#333333") || '#333' }}>
                         <div className="flex justify-between items-start">
                           <div className="flex items-center space-x-2 min-w-0">
-                            {game.logo_url && (
-                               <img src={game.logo_url} alt="" className="w-8 h-8 rounded-lg object-cover shadow-sm bg-white/20" />
+                            {(game.custom_logo_url || game.global_games?.logo_url || undefined) && (
+                               <img src={(game.custom_logo_url || game.global_games?.logo_url || undefined)} alt="" className="w-8 h-8 rounded-lg object-cover shadow-sm bg-white/20" />
                             )}
-                            <h4 className="font-bold text-white text-lg truncate">{game.name}</h4>
+                            <h4 className="font-bold text-white text-lg truncate">{(game.custom_name || game.global_games?.name || "")}</h4>
                           </div>
                           
                           <div className="flex items-center text-white/90 bg-black/20 px-2 py-1 rounded-lg text-xs font-bold backdrop-blur-sm" title="Racha en este juego">
