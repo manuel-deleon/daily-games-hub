@@ -1,18 +1,19 @@
 import { useEffect, useState } from 'react';
-import { Outlet, useNavigate, Link } from 'react-router-dom';
+import { Outlet, useNavigate, Link, useLocation } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
-import { useTheme } from '../hooks/useTheme';
-import { LogOut, Sun, Moon, Flame, User as UserIcon, Users, Bell } from 'lucide-react';
+import { Flame, User as UserIcon, Users, Bell, Home } from 'lucide-react';
 import type { Profile } from '../types';
+import { useLanguage } from '../hooks/useLanguage';
 
 export function Layout() {
-  const { theme, toggleTheme } = useTheme();
   const navigate = useNavigate();
+  const location = useLocation();
+  const { t } = useLanguage();
   const [profile, setProfile] = useState<Profile | null>(null);
   
   // Toast Notification State
   const [toastMessage, setToastMessage] = useState<string | null>(null);
-
+  
   useEffect(() => {
     async function loadProfile() {
       const { data: { session } } = await supabase.auth.getSession();
@@ -35,7 +36,6 @@ export function Layout() {
     loadProfile();
   }, [navigate]);
 
-  // Supabase Realtime Subscription for Followers
   useEffect(() => {
     if (!profile) return;
 
@@ -50,7 +50,6 @@ export function Layout() {
           filter: `friend_id=eq.${profile.id}`,
         },
         async (payload) => {
-          // Buscar el nombre del usuario que nos acaba de seguir
           const { data } = await supabase
             .from('profiles')
             .select('username')
@@ -58,8 +57,7 @@ export function Layout() {
             .single();
 
           if (data) {
-            setToastMessage(`¡${data.username} comenzó a seguirte!`);
-            // Ocultar el toast después de 5 segundos
+            setToastMessage(t(`¡${data.username} comenzó a seguirte!`, `${data.username} started following you!`));
             setTimeout(() => setToastMessage(null), 5000);
           }
         }
@@ -69,19 +67,16 @@ export function Layout() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [profile]);
+  }, [profile, t]);
 
-  const handleSignOut = async () => {
-    await supabase.auth.signOut();
-    navigate('/login');
-  };
+  const isActive = (path: string) => location.pathname.startsWith(path);
 
   return (
-    <div className="min-h-screen bg-background text-foreground transition-colors duration-300 relative">
+    <div className="min-h-screen bg-background text-foreground transition-colors duration-300 relative pb-20 sm:pb-0">
       
       {/* Toast Notification UI */}
       {toastMessage && (
-        <div className="fixed bottom-6 right-6 z-50 animate-in slide-in-from-bottom-5 fade-in duration-300">
+        <div className="fixed bottom-24 sm:bottom-6 right-6 z-50 animate-in slide-in-from-bottom-5 fade-in duration-300">
           <div className="bg-primary text-primary-foreground px-6 py-4 rounded-xl shadow-2xl flex items-center space-x-3">
             <div className="bg-white/20 p-2 rounded-full">
               <Bell className="w-5 h-5 text-white" />
@@ -92,74 +87,93 @@ export function Layout() {
       )}
 
       {/* Top Navbar */}
-      <nav className="border-b border-border bg-card sticky top-0 z-10">
+      <nav className="border-b border-border bg-card sticky top-0 z-40">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between h-16 items-center">
             
-            {/* Left side: Logo/Title */}
             <div className="flex-shrink-0 flex items-center">
-              <Link to="/dashboard" className="text-xl font-bold text-primary hover:opacity-80 transition-opacity">
-                DailyPlay
+              <Link to="/dashboard" className="flex items-center hover:opacity-80 transition-opacity">
+                <img src="/pwa-192x192.png" alt="App Logo" className="w-10 h-10 rounded-xl shadow-sm" />
+              </Link>
+            </div>
+
+            {/* Desktop Navigation (Hidden on Mobile) */}
+            <div className="hidden sm:flex items-center space-x-8">
+              <Link 
+                to="/dashboard" 
+                className={`font-semibold flex items-center space-x-2 transition-colors ${isActive('/dashboard') ? 'text-primary' : 'text-muted-foreground hover:text-foreground'}`}
+              >
+                <Home className="w-4 h-4" />
+                <span>{t('Dashboard', 'Dashboard')}</span>
+              </Link>
+              <Link 
+                to="/friends" 
+                className={`font-semibold flex items-center space-x-2 transition-colors ${isActive('/friends') ? 'text-primary' : 'text-muted-foreground hover:text-foreground'}`}
+              >
+                <Users className="w-4 h-4" />
+                <span>{t('Community', 'Comunidad')}</span>
               </Link>
             </div>
 
             {/* Right side: User stats & Actions */}
             <div className="flex items-center space-x-4">
-              
-              <Link to="/friends" className="text-muted-foreground hover:text-foreground transition-colors p-2" title="Comunidad / Amigos">
-                <Users className="w-5 h-5" />
-              </Link>
-
-              {/* Global Streak */}
+              {/* Global Streak (Visible on Desktop) */}
               {profile && (
-                <div className="flex items-center text-orange-500 font-bold bg-orange-500/10 px-3 py-1.5 rounded-full" title="Racha Global">
-                  <Flame className="w-5 h-5 mr-1" />
+                <div className="hidden sm:flex items-center text-orange-500 font-bold bg-orange-500/10 px-3 py-1.5 rounded-full" title={t("Racha Global", "Global Streak")}>
+                  <Flame className="w-5 h-5 mr-1.5" />
                   <span>{profile.global_streak}</span>
                 </div>
               )}
 
-              {/* User Profile info */}
+              {/* User Profile Avatar */}
               {profile && (
-                <Link to="/profile" className="flex items-center space-x-2 hidden sm:flex hover:opacity-80 transition-opacity cursor-pointer">
-                  <div className="text-sm text-right">
-                    <p className="font-medium text-foreground">{profile.username}</p>
-                  </div>
-                  <div className="h-9 w-9 rounded-full bg-muted border border-border flex items-center justify-center overflow-hidden" title="Mi Perfil">
-                    {profile.avatar_url ? (
-                      <img src={profile.avatar_url} alt="Avatar" className="h-full w-full object-cover" />
-                    ) : (
-                      <UserIcon className="w-5 h-5 text-muted-foreground" />
-                    )}
-                  </div>
+                <Link to="/profile" className="h-9 w-9 rounded-full bg-muted border border-border flex items-center justify-center overflow-hidden hover:ring-2 hover:ring-primary hover:ring-offset-2 hover:ring-offset-background transition-all" title={t("Mi Perfil", "My Profile")}>
+                  {profile.avatar_url ? (
+                    <img src={profile.avatar_url} alt="Avatar" className="h-full w-full object-cover" />
+                  ) : (
+                    <UserIcon className="w-5 h-5 text-muted-foreground" />
+                  )}
                 </Link>
               )}
-
-              {/* Theme Toggle */}
-              <button
-                onClick={toggleTheme}
-                className="p-2 rounded-full hover:bg-muted text-muted-foreground transition-colors"
-                aria-label="Alternar tema"
-              >
-                {theme === 'light' ? <Moon className="w-5 h-5" /> : <Sun className="w-5 h-5" />}
-              </button>
-
-              {/* Logout */}
-              <button
-                onClick={handleSignOut}
-                className="p-2 rounded-full hover:bg-destructive/10 text-destructive transition-colors"
-                title="Cerrar sesión"
-              >
-                <LogOut className="w-5 h-5" />
-              </button>
             </div>
           </div>
         </div>
       </nav>
 
       {/* Main Content Area */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
         <Outlet />
       </main>
+
+      {/* Bottom Navigation Bar (Mobile Only) */}
+      <div className="sm:hidden fixed bottom-0 left-0 right-0 z-40 bg-card border-t border-border pb-safe">
+        <div className="flex justify-around items-center h-16 px-4">
+          <Link 
+            to="/dashboard" 
+            className={`flex flex-col items-center justify-center w-full h-full space-y-1 ${isActive('/dashboard') ? 'text-primary' : 'text-muted-foreground hover:text-foreground'}`}
+          >
+            <Home className="w-5 h-5" />
+            <span className="text-[10px] font-semibold">{t('Home', 'Inicio')}</span>
+          </Link>
+          <Link 
+            to="/friends" 
+            className={`flex flex-col items-center justify-center w-full h-full space-y-1 ${isActive('/friends') ? 'text-primary' : 'text-muted-foreground hover:text-foreground'}`}
+          >
+            <Users className="w-5 h-5" />
+            <span className="text-[10px] font-semibold">{t('Community', 'Comunidad')}</span>
+          </Link>
+          <Link 
+            to="/profile" 
+            className={`flex flex-col items-center justify-center w-full h-full space-y-1 ${isActive('/profile') ? 'text-primary' : 'text-muted-foreground hover:text-foreground'}`}
+          >
+            <UserIcon className="w-5 h-5" />
+            <span className="text-[10px] font-semibold">{t('Profile', 'Perfil')}</span>
+          </Link>
+        </div>
+      </div>
+
     </div>
   );
 }
+
+

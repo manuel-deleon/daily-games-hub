@@ -8,6 +8,7 @@ import { Profile } from './pages/Profile';
 import { Friends } from './pages/Friends';
 import type { Session } from '@supabase/supabase-js';
 import { useTheme } from './hooks/useTheme';
+import { LanguageProvider } from './hooks/useLanguage';
 
 function App() {
   const [session, setSession] = useState<Session | null>(null);
@@ -41,30 +42,32 @@ function App() {
   }
 
   return (
-    <BrowserRouter>
-      <Routes>
-        {/* Ruta pública */}
-        <Route 
-          path="/login" 
-          element={!session ? <Auth /> : <Navigate to="/dashboard" replace />} 
-        />
-        
-        {/* Rutas protegidas que usan el Layout principal */}
-        <Route 
-          path="/" 
-          element={session ? <Layout /> : <Navigate to="/login" replace />}
-        >
-          {/* Redirigir la raíz al dashboard */}
-          <Route index element={<Navigate to="/dashboard" replace />} />
-          <Route path="dashboard" element={<Dashboard />} />
-          <Route path="profile" element={<Profile />} />
-          <Route path="friends" element={<Friends />} />
-        </Route>
+    <LanguageProvider>
+      <BrowserRouter>
+        <Routes>
+          {/* Ruta pública */}
+          <Route 
+            path="/login" 
+            element={!session ? <Auth /> : <Navigate to="/dashboard" replace />} 
+          />
+          
+          {/* Rutas protegidas que usan el Layout principal */}
+          <Route 
+            path="/" 
+            element={session ? <Layout /> : <Navigate to="/login" replace />}
+          >
+            {/* Redirigir la raíz al dashboard */}
+            <Route index element={<Navigate to="/dashboard" replace />} />
+            <Route path="dashboard" element={<Dashboard />} />
+            <Route path="profile" element={<Profile />} />
+            <Route path="friends" element={<Friends />} />
+          </Route>
 
-        {/* Catch all para URLs inexistentes */}
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
-    </BrowserRouter>
+          {/* Catch all para URLs inexistentes */}
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </BrowserRouter>
+    </LanguageProvider>
   );
 }
 
