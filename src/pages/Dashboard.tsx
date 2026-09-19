@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
-import { Flame, Play, CheckCircle2, Circle, Plus, X, Loader2 } from 'lucide-react';
+import { Flame, Play, CheckCircle2, Circle, Plus, X, Loader2, Pencil, Trash2 } from 'lucide-react';
 import type { Game } from '../types';
 
 export function Dashboard() {
@@ -9,13 +9,69 @@ export function Dashboard() {
   const [isLoading, setIsLoading] = useState(true);
   const [isMarking, setIsMarking] = useState<string | null>(null);
 
-  // Add Game Modal State
+  // Add/Edit Game Modal State
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [editingGame, setEditingGame] = useState<Game | null>(null);
   const [newGameName, setNewGameName] = useState('');
   const [newGameUrl, setNewGameUrl] = useState('');
   const [newGameColor, setNewGameColor] = useState('#709176');
   const [isAdding, setIsAdding] = useState(false);
   const [addError, setAddError] = useState<string | null>(null);
+
+  const openAddModal = () => {
+    setEditingGame(null);
+    setNewGameName('');
+    setNewGameUrl('');
+    setNewGameColor('#709176');
+    setAddError(null);
+    setIsAddModalOpen(true);
+  };
+
+  const openEditModal = (game: Game) => {
+    setEditingGame(game);
+    setNewGameName(game.name);
+    setNewGameUrl(game.url);
+    setNewGameColor(game.color);
+    setAddError(null);
+  };
+
+  const handleUpdateGame = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingGame) return;
+    setIsAdding(true);
+    setAddError(null);
+
+    try {
+      const { error } = await supabase
+        .from('games')
+        .update({
+          name: newGameName.trim(),
+          url: newGameUrl.trim(),
+          color: newGameColor,
+        })
+        .eq('id', editingGame.id);
+
+      if (error) throw error;
+
+      setEditingGame(null);
+      await loadData();
+    } catch (err: any) {
+      setAddError(err.message || 'Error al actualizar el juego.');
+    } finally {
+      setIsAdding(false);
+    }
+  };
+
+  const handleDeleteGame = async (game: Game) => {
+    if (!window.confirm(`¿Estás seguro de que quieres eliminar "${game.name}"? Perderás tu racha actual.`)) {
+      return;
+    }
+    
+    const { error } = await supabase.from('games').delete().eq('id', game.id);
+    if (!error) {
+      await loadData();
+    }
+  };
 
   const loadData = async () => {
     const { data: { session } } = await supabase.auth.getSession();
@@ -119,7 +175,7 @@ export function Dashboard() {
         </div>
         
         <button
-          onClick={() => setIsAddModalOpen(true)}
+          onClick={openAddModal}
           className="flex items-center justify-center py-2 px-4 font-medium rounded-lg text-primary-foreground bg-primary hover:opacity-90 transition-colors shadow-sm"
         >
           <Plus className="w-5 h-5 mr-1.5" />
@@ -128,8 +184,50 @@ export function Dashboard() {
       </div>
 
       {games.length === 0 ? (
-        <div className="text-center py-12 bg-card rounded-xl border border-border">
-          <p className="text-muted-foreground">No tienes juegos en tu catálogo aún.</p>
+        <div className="space-y-6">
+          <div className="text-center py-12 bg-card rounded-xl border border-border shadow-sm">
+            <p className="text-muted-foreground text-lg mb-4">No tienes juegos en tu catálogo aún.</p>
+            <button
+              onClick={openAddModal}
+              className="inline-flex items-center justify-center py-2 px-4 font-medium rounded-lg text-primary-foreground bg-primary hover:opacity-90 transition-colors shadow-sm"
+            >
+              <Plus className="w-5 h-5 mr-1.5" />
+              Añadir tu primer juego
+            </button>
+          </div>
+          
+          <div>
+            <h3 className="text-xl font-bold text-foreground mb-4">Juegos Populares Recomendados</h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              {[
+                { name: 'Wordle', url: 'https://www.nytimes.com/games/wordle/index.html', color: '#538d4e' },
+                { name: 'Connections', url: 'https://www.nytimes.com/games/connections', color: '#b4a5e5' },
+                { name: 'Framed', url: 'https://framed.wtf/', color: '#1f1f23' },
+                { name: 'Loldle', url: 'https://loldle.net/', color: '#0a1428' },
+                { name: 'Pokedle', url: 'https://pokedle.net/', color: '#ef4444' },
+                { name: 'Tradle', url: 'https://oec.world/en/tradle/', color: '#0ea5e9' }
+              ].map((rec) => (
+                <div key={rec.name} className="flex flex-col p-4 rounded-xl border border-border bg-card shadow-sm hover:shadow-md transition-shadow">
+                  <div className="flex items-center space-x-3 mb-3">
+                    <div className="w-8 h-8 rounded-full" style={{ backgroundColor: rec.color }}></div>
+                    <span className="font-bold text-foreground">{rec.name}</span>
+                  </div>
+                  <button
+                    onClick={async () => {
+                      const { data: { session } } = await supabase.auth.getSession();
+                      if (session) {
+                        await supabase.from('games').insert({ user_id: session.user.id, name: rec.name, url: rec.url, color: rec.color });
+                        await loadData();
+                      }
+                    }}
+                    className="mt-auto py-1.5 px-3 bg-muted text-muted-foreground hover:bg-primary/10 hover:text-primary rounded-lg text-sm font-medium transition-colors"
+                  >
+                    + Agregar
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -145,9 +243,19 @@ export function Dashboard() {
                 <div className="p-6">
                   <div className="flex justify-between items-start">
                     <h3 className="text-2xl font-bold text-white mb-2">{game.name}</h3>
-                    <div className="flex items-center text-white/90 bg-black/20 px-2 py-1 rounded-md backdrop-blur-sm" title="Racha actual">
-                      <Flame className={`w-4 h-4 mr-1 ${game.current_streak > 0 ? 'text-orange-300' : 'text-gray-400'}`} />
-                      <span className="font-semibold text-sm">{game.current_streak}</span>
+                    <div className="flex space-x-2">
+                      <div className="flex items-center text-white/90 bg-black/20 px-2 py-1 rounded-md backdrop-blur-sm" title="Racha actual">
+                        <Flame className={`w-4 h-4 mr-1 ${game.current_streak > 0 ? 'text-orange-300' : 'text-gray-400'}`} />
+                        <span className="font-semibold text-sm">{game.current_streak}</span>
+                      </div>
+                      <div className="flex items-center bg-black/20 rounded-md backdrop-blur-sm opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button onClick={() => openEditModal(game)} className="p-1.5 text-white/70 hover:text-white transition-colors" title="Editar">
+                          <Pencil className="w-4 h-4" />
+                        </button>
+                        <button onClick={() => handleDeleteGame(game)} className="p-1.5 text-white/70 hover:text-red-400 transition-colors" title="Eliminar">
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
                     </div>
                   </div>
                   
@@ -202,21 +310,26 @@ export function Dashboard() {
         </div>
       )}
 
-      {/* Add Game Modal */}
-      {isAddModalOpen && (
+      {/* Add/Edit Game Modal */}
+      {(isAddModalOpen || editingGame) && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm">
           <div className="bg-card w-full max-w-md rounded-2xl shadow-xl border border-border overflow-hidden animate-in fade-in zoom-in-95 duration-200">
             <div className="flex justify-between items-center p-6 border-b border-border">
-              <h3 className="text-xl font-bold text-foreground">Añadir Nuevo Juego</h3>
+              <h3 className="text-xl font-bold text-foreground">
+                {editingGame ? 'Editar Juego' : 'Añadir Nuevo Juego'}
+              </h3>
               <button 
-                onClick={() => setIsAddModalOpen(false)}
+                onClick={() => {
+                  setIsAddModalOpen(false);
+                  setEditingGame(null);
+                }}
                 className="text-muted-foreground hover:text-foreground transition-colors"
               >
                 <X className="w-6 h-6" />
               </button>
             </div>
             
-            <form onSubmit={handleAddGame} className="p-6 space-y-6">
+            <form onSubmit={editingGame ? handleUpdateGame : handleAddGame} className="p-6 space-y-6">
               <div className="space-y-4">
                 <div className="space-y-2">
                   <label htmlFor="name" className="text-sm font-medium text-foreground">Nombre del Juego</label>
@@ -268,7 +381,10 @@ export function Dashboard() {
               <div className="flex justify-end gap-3 pt-2">
                 <button
                   type="button"
-                  onClick={() => setIsAddModalOpen(false)}
+                  onClick={() => {
+                    setIsAddModalOpen(false);
+                    setEditingGame(null);
+                  }}
                   className="px-4 py-2 text-sm font-medium text-foreground hover:bg-muted rounded-lg transition-colors"
                 >
                   Cancelar
@@ -279,7 +395,7 @@ export function Dashboard() {
                   className="flex items-center px-4 py-2 text-sm font-medium text-primary-foreground bg-primary hover:opacity-90 rounded-lg transition-colors disabled:opacity-50"
                 >
                   {isAdding && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-                  Guardar Juego
+                  {editingGame ? 'Actualizar' : 'Guardar Juego'}
                 </button>
               </div>
             </form>
