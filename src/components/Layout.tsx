@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Outlet, useNavigate, Link } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { useTheme } from '../hooks/useTheme';
-import { LogOut, Sun, Moon, Flame, User as UserIcon, Users, Bell } from 'lucide-react';
+import { LogOut, Sun, Moon, Flame, User as UserIcon, Users, Bell, Trophy } from 'lucide-react';
 import type { Profile } from '../types';
 
 export function Layout() {
@@ -104,7 +104,11 @@ export function Layout() {
             </div>
 
             {/* Right side: User stats & Actions */}
-            <div className="flex items-center space-x-4">
+            <div className="flex items-center space-x-2 sm:space-x-4">
+              
+              <Link to="/leaderboard" className="text-muted-foreground hover:text-yellow-500 transition-colors p-2" title="Clasificación">
+                <Trophy className="w-5 h-5" />
+              </Link>
               
               <Link to="/friends" className="text-muted-foreground hover:text-foreground transition-colors p-2" title="Comunidad / Amigos">
                 <Users className="w-5 h-5" />
