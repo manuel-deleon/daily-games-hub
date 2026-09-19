@@ -4,6 +4,7 @@ export interface Profile {
   full_name: string | null;
   avatar_url: string | null;
   global_streak: number;
+  highest_streak: number;
   created_at: string;
 }
 
