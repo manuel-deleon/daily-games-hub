@@ -89,13 +89,13 @@ export function Profile() {
       
       setProfile({ ...profile, username: username.trim(), full_name: fullName.trim(), avatar_url: finalAvatarUrl });
       setAvatarFile(null);
-      setMessage({ type: 'success', text: 'Profile actualizado correctamente.' });
+      setMessage({ type: 'success', text: 'Profile updated successfully.' });
       setTimeout(() => setMessage(null), 3000);
     } catch (err: any) {
       if (err.code === '23505') {
-        setMessage({ type: 'error', text: 'Este nombre de usuario ya está en uso.' });
+        setMessage({ type: 'error', text: 'This username is already taken.' });
       } else {
-        setMessage({ type: 'error', text: 'Ocurrió un error al guardar.' });
+        setMessage({ type: 'error', text: 'An error occurred while saving.' });
       }
     } finally {
       setIsSavingProfile(false);
@@ -115,10 +115,10 @@ export function Profile() {
       if (error) throw error;
       
       setNewPassword('');
-      setPasswordMessage({ type: 'success', text: 'Contraseña actualizada.' });
+      setPasswordMessage({ type: 'success', text: 'Password updated successfully.' });
       setTimeout(() => setPasswordMessage(null), 3000);
     } catch (err: any) {
-      setPasswordMessage({ type: 'error', text: 'Error al actualizar contraseña. Intenta iniciar sesión de nuevo.' });
+      setPasswordMessage({ type: 'error', text: 'Error updating password. Try signing in again.' });
     } finally {
       setIsSavingPassword(false);
     }
@@ -142,8 +142,8 @@ export function Profile() {
   return (
     <div className="max-w-xl mx-auto space-y-8 pb-10">
       <div className="text-center sm:text-left flex flex-col items-center sm:items-start">
-        <h2 className="text-3xl font-extrabold tracking-tight text-foreground">Tu Profile</h2>
-        <p className="text-muted-foreground mt-1 font-medium">Administra tu identidad y credenciales.</p>
+        <h2 className="text-3xl font-extrabold tracking-tight text-foreground">Your Profile</h2>
+        <p className="text-muted-foreground mt-1 font-medium">Manage your identity and credentials.</p>
       </div>
 
       {/* Stats Cards */}
@@ -190,15 +190,15 @@ export function Profile() {
               </label>
             </div>
             <div className="text-center sm:text-left">
-              <h3 className="text-xl font-bold text-foreground">Foto de perfil</h3>
-              <p className="text-sm text-muted-foreground mt-1">Sube una imagen para tu avatar.</p>
+              <h3 className="text-xl font-bold text-foreground">Profile Picture</h3>
+              <p className="text-sm text-muted-foreground mt-1">Upload an image for your avatar.</p>
             </div>
           </div>
 
           <div className="space-y-4 pt-4 border-t border-border/50">
             <div className="space-y-1.5">
               <label htmlFor="fullName" className="text-sm font-bold text-foreground block">
-                Nombre Completo
+                Full Name
               </label>
               <div className="relative">
                 <input
@@ -215,7 +215,7 @@ export function Profile() {
 
             <div className="space-y-1.5">
               <label htmlFor="username" className="text-sm font-bold text-foreground block">
-                Nombre de Usuario
+                Username
               </label>
               <div className="relative">
                 <input
@@ -256,7 +256,7 @@ export function Profile() {
         <form onSubmit={handleUpdatePassword} className="space-y-6">
           <div>
             <h3 className="text-lg font-extrabold text-foreground mb-1">Security</h3>
-            <p className="text-sm text-muted-foreground font-medium">Actualiza tu contraseña.</p>
+            <p className="text-sm text-muted-foreground font-medium">Update your password.</p>
           </div>
 
           <div className="space-y-1.5">

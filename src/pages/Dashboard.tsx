@@ -549,7 +549,7 @@ export function Dashboard() {
             <form onSubmit={editingGame ? handleUpdateGame : handleAddGame} className="p-6 space-y-5">
               <div className="space-y-4">
                 <div className="space-y-1.5">
-                  <label htmlFor="name" className="text-sm font-bold text-foreground">(game.custom_name || game.global_games?.name)</label>
+                  <label htmlFor="name" className="text-sm font-bold text-foreground">Game Name</label>
                   <input
                     id="name"
                     type="text"

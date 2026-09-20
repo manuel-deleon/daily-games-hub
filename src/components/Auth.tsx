@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { supabase } from '../lib/supabase';
-import { Mail, Lock, Loader2, Sun, Moon, User, AtSign, Eye, EyeOff } from 'lucide-react';
-import { useTheme } from '../hooks/useTheme';
+import { Mail, Lock, Loader2, User, AtSign, Eye, EyeOff } from 'lucide-react';
+
 
 export function Auth() {
   const [isLoading, setIsLoading] = useState(false);
@@ -15,7 +15,7 @@ export function Auth() {
   const [showPassword, setShowPassword] = useState(false);
   const [isResettingPassword, setIsResettingPassword] = useState(false);
 
-  const { theme, toggleTheme } = useTheme();
+  
 
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -82,13 +82,7 @@ export function Auth() {
 
   return (
     <div className="min-h-screen flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8 relative bg-background">
-      <button 
-        onClick={toggleTheme} 
-        className="absolute top-6 right-6 p-2 rounded-full bg-card border border-border shadow-sm text-foreground hover:bg-muted transition-colors"
-        aria-label="Alternar tema"
-      >
-        {theme === 'light' ? <Moon className="w-5 h-5" /> : <Sun className="w-5 h-5" />}
-      </button>
+      
 
       <div className="max-w-md w-full space-y-8 bg-card p-8 rounded-2xl shadow-xl border border-border">
         <div className="flex flex-col items-center mb-6">

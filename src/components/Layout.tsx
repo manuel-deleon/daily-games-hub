@@ -3,12 +3,12 @@ import { Outlet, useNavigate, Link, useLocation } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { Flame, User as UserIcon, Users, Bell, Home } from 'lucide-react';
 import type { Profile } from '../types';
-import { useLanguage } from '../hooks/useLanguage';
+
 
 export function Layout() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { t } = useLanguage();
+  
   const [profile, setProfile] = useState<Profile | null>(null);
   
   // Toast Notification State
@@ -57,7 +57,7 @@ export function Layout() {
             .single();
 
           if (data) {
-            setToastMessage(t(`¡${data.username} comenzó a seguirte!`, `${data.username} started following you!`));
+            setToastMessage(`${data.username} started following you!`);
             setTimeout(() => setToastMessage(null), 5000);
           }
         }
@@ -67,7 +67,7 @@ export function Layout() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [profile, t]);
+  }, [profile]);
 
   const isActive = (path: string) => location.pathname.startsWith(path);
 
@@ -104,14 +104,14 @@ export function Layout() {
                 className={`font-semibold flex items-center space-x-2 transition-colors ${isActive('/dashboard') ? 'text-primary' : 'text-muted-foreground hover:text-foreground'}`}
               >
                 <Home className="w-4 h-4" />
-                <span>{t('Dashboard', 'Dashboard')}</span>
+                <span>{'Dashboard'}</span>
               </Link>
               <Link 
                 to="/friends" 
                 className={`font-semibold flex items-center space-x-2 transition-colors ${isActive('/friends') ? 'text-primary' : 'text-muted-foreground hover:text-foreground'}`}
               >
                 <Users className="w-4 h-4" />
-                <span>{t('Community', 'Comunidad')}</span>
+                <span>{'Community'}</span>
               </Link>
             </div>
 
@@ -119,7 +119,7 @@ export function Layout() {
             <div className="flex items-center space-x-4">
               {/* Global Streak (Visible on Desktop) */}
               {profile && (
-                <div className="hidden sm:flex items-center text-orange-500 font-bold bg-orange-500/10 px-3 py-1.5 rounded-full" title={t("Racha Global", "Global Streak")}>
+                <div className="hidden sm:flex items-center text-orange-500 font-bold bg-orange-500/10 px-3 py-1.5 rounded-full" title={"Global Streak"}>
                   <Flame className="w-5 h-5 mr-1.5" />
                   <span>{profile.global_streak}</span>
                 </div>
@@ -127,7 +127,7 @@ export function Layout() {
 
               {/* User Profile Avatar */}
               {profile && (
-                <Link to="/profile" className="h-9 w-9 rounded-full bg-muted border border-border flex items-center justify-center overflow-hidden hover:ring-2 hover:ring-primary hover:ring-offset-2 hover:ring-offset-background transition-all" title={t("Mi Perfil", "My Profile")}>
+                <Link to="/profile" className="h-9 w-9 rounded-full bg-muted border border-border flex items-center justify-center overflow-hidden hover:ring-2 hover:ring-primary hover:ring-offset-2 hover:ring-offset-background transition-all" title={"My Profile"}>
                   {profile.avatar_url ? (
                     <img src={profile.avatar_url} alt="Avatar" className="h-full w-full object-cover" />
                   ) : (
@@ -153,21 +153,21 @@ export function Layout() {
             className={`flex flex-col items-center justify-center w-full h-full space-y-1 ${isActive('/dashboard') ? 'text-primary' : 'text-muted-foreground hover:text-foreground'}`}
           >
             <Home className="w-5 h-5" />
-            <span className="text-[10px] font-semibold">{t('Home', 'Inicio')}</span>
+            <span className="text-[10px] font-semibold">{'Home'}</span>
           </Link>
           <Link 
             to="/friends" 
             className={`flex flex-col items-center justify-center w-full h-full space-y-1 ${isActive('/friends') ? 'text-primary' : 'text-muted-foreground hover:text-foreground'}`}
           >
             <Users className="w-5 h-5" />
-            <span className="text-[10px] font-semibold">{t('Community', 'Comunidad')}</span>
+            <span className="text-[10px] font-semibold">{'Community'}</span>
           </Link>
           <Link 
             to="/profile" 
             className={`flex flex-col items-center justify-center w-full h-full space-y-1 ${isActive('/profile') ? 'text-primary' : 'text-muted-foreground hover:text-foreground'}`}
           >
             <UserIcon className="w-5 h-5" />
-            <span className="text-[10px] font-semibold">{t('Profile', 'Perfil')}</span>
+            <span className="text-[10px] font-semibold">{'Profile'}</span>
           </Link>
         </div>
       </div>
