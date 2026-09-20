@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
-import { Flame, Play, CheckCircle2, Circle, Plus, X, Loader2, Pencil, Trash2, Gamepad2, Upload } from 'lucide-react';
+import { Flame, Play, CheckCircle2, Circle, Plus, X, Loader2, Pencil, Trash2, Calendar, Gamepad2, Upload } from 'lucide-react';
 import type { Game, Profile } from '../types';
 
 export function Dashboard() {
@@ -341,15 +341,15 @@ return (
   
   // Date formatting
   const today = new Date();
-  
-  
+  const options: Intl.DateTimeFormatOptions = { weekday: 'long', month: 'long', day: 'numeric' };
+  const dateString = today.toLocaleDateString('en-US', options);
 
   const dismissRecommendations = () => {
     localStorage.setItem('hideRecommendations', 'true');
     setShowRecommendations(false);
   };
 
-  
+  const daysOfWeek = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
   const todayIndex = (today.getDay() + 6) % 7; // Monday = 0, Sunday = 6
   
   const getDayStatus = (offsetFromToday: number) => {
@@ -364,55 +364,64 @@ return (
   return (
     <div className="space-y-8">
       {/* Hero Header */}
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center pb-8 border-b border-border gap-6">
-          <div className="flex-1 space-y-3">
-            <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-foreground">
-              {completedGamesCount === totalGames && totalGames > 0 ? "You're all set!" : "Daily Games"}
-            </h1>
-            <p className="text-muted-foreground font-medium text-lg">
-              {totalGames === 0 
-                ? 'Start by adding your first game.'
-                : remainingGames === 0 
-                  ? 'You have completed all your games today!' 
-                  : `You have ${remainingGames} game${remainingGames === 1 ? "" : "s"} left to complete today.`}
-            </p>
-            
-            {/* Weekly Progress Bar */}
-            <div className="flex items-center space-x-2 mt-4">
-              {[0, 1, 2, 3, 4, 5, 6].map((dayIndex) => {
-                const offset = todayIndex - dayIndex;
-                const isFuture = offset < 0;
-                const isCompleted = !isFuture && getDayStatus(offset);
-                const isToday = offset === 0;
-                return (
-                  <div key={dayIndex} className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs transition-all ${
-                      isCompleted 
-                        ? 'bg-foreground text-background shadow-sm' 
-                        : isToday
-                          ? 'bg-muted text-foreground ring-2 ring-primary ring-offset-2 ring-offset-background'
-                          : isFuture
-                            ? 'bg-transparent text-muted-foreground/30 border border-border/50'
-                            : 'bg-muted text-muted-foreground'
-                    }`}>
-                    {['S', 'M', 'T', 'W', 'T', 'F', 'S'][(new Date(new Date().setDate(new Date().getDate() - offset))).getDay()]}
-                  </div>
-                );
-              })}
-            </div>
+      <div className="bg-card border border-border rounded-3xl p-6 sm:p-10 shadow-sm flex flex-col sm:flex-row items-center sm:items-start justify-between gap-6 relative overflow-hidden">
+        {/* Background Accent */}
+        <div className="absolute -top-24 -right-24 w-48 h-48 bg-primary/10 rounded-full blur-3xl pointer-events-none"></div>
+
+        <div className="flex flex-col items-center sm:items-start z-10 w-full sm:w-auto flex-1">
+          <div className="flex items-center text-primary font-semibold mb-2">
+            <Calendar className="w-5 h-5 mr-2" />
+            <span className="capitalize">{dateString}</span>
           </div>
-  
-          <div className="flex items-center space-x-4 bg-muted/30 py-3 px-5 rounded-2xl border border-border">
-            <div className="flex flex-col">
-              <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Global Streak</span>
-              <div className="flex items-center text-orange-500">
-                <Flame className="w-6 h-6 mr-1" />
-                <span className="text-3xl font-black text-foreground">{profile?.global_streak || 0}</span>
-              </div>
-            </div>
+          <h1 className="text-4xl sm:text-5xl font-extrabold text-foreground tracking-tight mb-2 text-center sm:text-left">
+            Your Progress
+          </h1>
+          <p className="text-muted-foreground text-lg text-center sm:text-left mb-6">
+            {totalGames === 0 
+              ? 'Start by adding your first game.'
+              : remainingGames === 0 
+                ? 'You have completed all your games today!' 
+                : `You have ${remainingGames} game${remainingGames === 1 ? "" : "s"} left to complete today.`}
+          </p>
+          
+          {/* Weekly Progress Bar */}
+          <div className="flex items-center space-x-2 mt-2 w-full max-w-xs justify-center sm:justify-start">
+            {[0, 1, 2, 3, 4, 5, 6].map((dayIndex) => {
+              const offset = todayIndex - dayIndex;
+              const isFuture = offset < 0;
+              const isCompleted = !isFuture && getDayStatus(offset);
+              const isToday = offset === 0;
+              return (
+                <div key={dayIndex} className="flex flex-col items-center">
+                  <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs mb-1 transition-all ${
+                    isCompleted 
+                      ? 'bg-primary text-primary-foreground shadow-sm' 
+                      : isToday && remainingGames === 0
+                        ? 'bg-primary text-primary-foreground shadow-sm'
+                        : isToday
+                          ? 'border-2 border-primary text-primary'
+                          : isFuture
+                            ? 'bg-background text-muted-foreground/30 border border-border/50'
+                            : 'bg-muted text-muted-foreground border border-border'
+                  }`}>
+                    {daysOfWeek[dayIndex]}
+                  </div>
+                </div>
+              );
+            })}
           </div>
         </div>
 
-        {/* Catalog Header */}
+        <div className="flex flex-col items-center justify-center bg-background rounded-2xl p-6 border border-border min-w[160px] z-10 shadow-sm">
+          <span className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-1">Global Streak</span>
+          <div className="flex items-center text-orange-500">
+            <Flame className="w-10 h-10 mr-1" />
+            <span className="text-5xl font-black">{profile?.global_streak || 0}</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Catalog Header */}
       <div className="flex justify-between items-end flex-wrap gap-4 mt-8 mb-4">
         <div>
           <h2 className="text-2xl font-bold tracking-tight text-foreground">Your Catalog</h2>

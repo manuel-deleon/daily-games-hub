@@ -217,14 +217,14 @@ return (
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4">
         <div>
           <h2 className="text-3xl font-bold tracking-tight text-foreground">Community</h2>
-          <p className="text-muted-foreground mt-1">Connect, compete and discover new daily games.</p>
+          
         </div>
         
-        <div className="flex bg-muted p-1 rounded-xl w-full sm:w-auto overflow-x-auto shadow-inner">
+        <div className="flex border-b border-border w-full sm:w-auto overflow-x-auto gap-2">
           <button
             onClick={() => setActiveTab('ranking')}
-            className={`flex-1 sm:flex-none whitespace-nowrap px-4 py-2.5 text-sm font-bold rounded-lg transition-all flex items-center justify-center ${
-              activeTab === 'ranking' ? 'bg-background text-foreground shadow-sm ring-1 ring-border' : 'text-muted-foreground hover:text-foreground'
+            className={`flex-1 sm:flex-none whitespace-nowrap px-4 py-3 text-sm font-bold transition-all border-b-2 -mb-px flex items-center justify-center ${
+              activeTab === 'ranking' ? 'border-primary text-foreground' : 'border-transparent text-muted-foreground hover:text-foreground hover:border-border'
             }`}
           >
             <Trophy className="w-4 h-4 mr-2" />
@@ -232,14 +232,14 @@ return (
           </button>
           <button
             onClick={() => setActiveTab('following')}
-            className={`flex-1 sm:flex-none whitespace-nowrap px-4 py-2.5 text-sm font-bold rounded-lg transition-all ${
-              activeTab === 'following' ? 'bg-background text-foreground shadow-sm ring-1 ring-border' : 'text-muted-foreground hover:text-foreground'
+            className={`flex-1 sm:flex-none whitespace-nowrap px-4 py-3 text-sm font-bold transition-all border-b-2 -mb-px ${
+              activeTab === 'following' ? 'border-primary text-foreground' : 'border-transparent text-muted-foreground hover:text-foreground hover:border-border'
             }`}
           >Following</button>
           <button
             onClick={() => setActiveTab('followers')}
-            className={`flex-1 sm:flex-none whitespace-nowrap px-4 py-2.5 text-sm font-bold rounded-lg transition-all flex items-center justify-center ${
-              activeTab === 'followers' ? 'bg-background text-foreground shadow-sm ring-1 ring-border' : 'text-muted-foreground hover:text-foreground'
+            className={`flex-1 sm:flex-none whitespace-nowrap px-4 py-3 text-sm font-bold transition-all border-b-2 -mb-px flex items-center justify-center ${
+              activeTab === 'followers' ? 'border-primary text-foreground' : 'border-transparent text-muted-foreground hover:text-foreground hover:border-border'
             }`}
           >
             Followers
@@ -249,18 +249,18 @@ return (
           </button>
           <button
             onClick={() => setActiveTab('search')}
-            className={`flex-1 sm:flex-none whitespace-nowrap px-4 py-2.5 text-sm font-bold rounded-lg transition-all flex items-center justify-center ${
-              activeTab === 'search' ? 'bg-background text-foreground shadow-sm ring-1 ring-border' : 'text-muted-foreground hover:text-foreground'
+            className={`flex-1 sm:flex-none whitespace-nowrap px-4 py-3 text-sm font-bold transition-all border-b-2 -mb-px flex items-center justify-center ${
+              activeTab === 'search' ? 'border-primary text-foreground' : 'border-transparent text-muted-foreground hover:text-foreground hover:border-border'
             }`}
           >
             <Search className="w-4 h-4 mr-2" />Search</button>
         </div>
       </div>
 
-      <div className="bg-card border border-border rounded-2xl shadow-sm overflow-hidden min-h-[400px]">
+      <div className="min-h-[400px] mt-6">
         {/* TAB: RANKING */}
         {activeTab === 'ranking' && (
-          <div className="p-6">
+          <div className="">
             <div className="flex items-center justify-between mb-6">
               <h3 className="text-xl font-bold">Top Global (Friends)</h3>
               {myRank && ranking.length > 0 && (
@@ -330,7 +330,7 @@ return (
 
         {/* TAB: SIGUIENDO */}
         {activeTab === 'following' && (
-          <div className="p-6">
+          <div className="">
             {isLoadingFollowing ? (
               <div className="flex justify-center py-12"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>
             ) : following.length === 0 ? (
@@ -376,7 +376,7 @@ return (
 
         {/* TAB: SEGUIDORES */}
         {activeTab === 'followers' && (
-          <div className="p-6">
+          <div className="">
             
             {isLoadingFollowers ? (
               <div className="flex justify-center py-12"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>
@@ -426,7 +426,7 @@ return (
 
         {/* TAB: BÚSQUEDA */}
         {activeTab === 'search' && (
-          <div className="p-6">
+          <div className="">
             <form onSubmit={handleSearch} className="mb-6 flex gap-3">
               <div className="relative flex-1">
                 <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
@@ -526,7 +526,7 @@ return (
                   <p className="text-muted-foreground font-medium">This profile has no public games.</p>
                 </div>
               ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="flex flex-col space-y-3">
                   {userGames.map((game) => {
                     const alreadyHaveIt = myGameUrls.has(game.global_game_id);
                     return (
