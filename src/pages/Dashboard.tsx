@@ -33,6 +33,7 @@ export function Dashboard() {
   const [newGameUrl, setNewGameUrl] = useState('');
   const [newGameColor, setNewGameColor] = useState('#709176');
   const [logoFile, setLogoFile] = useState<File | null>(null);
+  const [addingRec, setAddingRec] = useState<string | null>(null);
   const [isAdding, setIsAdding] = useState(false);
   const [addError, setAddError] = useState<string | null>(null);
 
@@ -568,22 +569,21 @@ return (
           </div>
         )}
 
-        {showRecommendations && (
+        {(showRecommendations || games.length === 0) && (
         <div className="bg-muted/30 p-6 rounded-3xl border border-border mt-8">
           <div className="flex justify-between items-center mb-6">
             <h3 className="text-lg font-bold text-foreground">Popular Recommendations</h3>
-            <button onClick={dismissRecommendations} className="text-muted-foreground hover:text-foreground p-2 rounded-full hover:bg-muted transition-colors" title="Hide recommendations">
-              <X className="w-5 h-5" />
-            </button>
+            {games.length > 0 && (
+              <button onClick={dismissRecommendations} className="text-muted-foreground hover:text-foreground p-2 rounded-full hover:bg-muted transition-colors" title="Hide recommendations">
+                <X className="w-5 h-5" />
+              </button>
+            )}
           </div>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
             {[
-              { name: 'Wordle', url: 'https://www.nytimes.com/games/wordle/index.html', color: '#538d4e' },
-              { name: 'Connections', url: 'https://www.nytimes.com/games/connections', color: '#b4a5e5' },
-              { name: 'Framed', url: 'https://framed.wtf/', color: '#1f1f23' },
-              { name: 'Loldle', url: 'https://loldle.net/', color: '#0a1428' },
-              { name: 'Pokedle', url: 'https://pokedle.net/', color: '#ef4444' },
-              { name: 'Tradle', url: 'https://oec.world/en/tradle/', color: '#0ea5e9' }
+              { name: 'Wordle', url: 'https://www.nytimes.com/games/wordle/index.html', icon: 'https://www.nytimes.com/games-assets/v2/metadata/wordle-apple-touch-icon.png' },
+              { name: 'Connections', url: 'https://www.nytimes.com/games/connections', icon: 'https://www.nytimes.com/games-assets/v2/metadata/connections-apple-touch-icon.png' },
+              { name: 'Strands', url: 'https://www.nytimes.com/games/strands', icon: 'https://www.nytimes.com/games-assets/v2/metadata/strands-apple-touch-icon.png' }
             ].map((rec) => {
               const alreadyHasIt = games.some(g => (g.custom_name || g.global_games?.name) === rec.name);
               if (alreadyHasIt) return null;
@@ -591,28 +591,34 @@ return (
               return (
                 <div key={rec.name} className="flex flex-col p-4 rounded-xl border border-border bg-card shadow-sm hover:shadow-md transition-shadow group">
                   <div className="flex items-center space-x-3 mb-4">
-                    <div className="w-10 h-10 rounded-xl shadow-sm flex-shrink-0" style={{ backgroundColor: rec.color }}></div>
+                    <img src={rec.icon} alt={rec.name} className="w-10 h-10 rounded-xl object-cover shadow-sm flex-shrink-0 border border-border" />
                     <span className="font-bold text-foreground truncate">{rec.name}</span>
                   </div>
                   <button
+                    disabled={addingRec === rec.name}
                     onClick={async () => {
-                      const { data: { session } } = await supabase.auth.getSession();
-                      if (session) {
-                        
-                        const { data: existingGlobal } = await supabase.from('global_games').select('id').eq('url', rec.url).maybeSingle();
-                        let gId = existingGlobal?.id;
-                        if (!gId) {
-                            const { data: newG } = await supabase.from('global_games').insert({ url: rec.url, name: rec.name, color: rec.color }).select().single();
-                            gId = newG.id;
-                        }
-                        await supabase.from('user_games').insert({ user_id: session.user.id, global_game_id: gId });
+                      setAddingRec(rec.name);
+                      try {
+                        const { data: { session } } = await supabase.auth.getSession();
+                        if (session) {
+                          const { data: existingGlobal } = await supabase.from('global_games').select('id').eq('url', rec.url).maybeSingle();
+                          let gId = existingGlobal?.id;
+                          if (!gId) {
+                              const { data: newG } = await supabase.from('global_games').insert({ url: rec.url, name: rec.name, logo_url: rec.icon, color: '#333333' }).select().single();
+                              gId = newG.id;
+                          }
+                          await supabase.from('user_games').insert({ user_id: session.user.id, global_game_id: gId });
 
-                        await loadData();
+                          await loadData();
+                        }
+                      } finally {
+                        setAddingRec(null);
                       }
                     }}
-                    className="mt-auto py-2 px-3 bg-muted text-muted-foreground hover:bg-primary hover:text-primary-foreground group-hover:bg-primary group-hover:text-primary-foreground rounded-lg text-sm font-bold transition-colors w-full"
+                    className="mt-auto flex items-center justify-center py-2 px-3 bg-primary text-primary-foreground hover:opacity-90 rounded-lg text-sm font-bold transition-colors w-full shadow-sm disabled:opacity-50"
                   >
-                    + Add
+                    {addingRec === rec.name ? <Loader2 className="w-4 h-4 mr-1.5 animate-spin" /> : <Plus className="w-4 h-4 mr-1.5" />}
+                    Add
                   </button>
                 </div>
               );
