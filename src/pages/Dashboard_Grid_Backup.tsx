@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
-import { Flame, Play, CheckCircle2, Circle, Plus, X, Loader2, Pencil, Trash2, Gamepad2, Upload } from 'lucide-react';
+import { Flame, Play, CheckCircle2, Circle, Plus, X, Loader2, Pencil, Trash2, Calendar, Gamepad2, Upload } from 'lucide-react';
 import type { Game, Profile } from '../types';
 
 export function Dashboard() {
@@ -153,38 +153,17 @@ export function Dashboard() {
     loadData();
   }, []);
 
-  const handleMarkCompleted = async (e: React.MouseEvent, gameId: string) => {
-    e.preventDefault();
-    e.stopPropagation();
+  const handleMarkCompleted = async (gameId: string) => {
     setIsMarking(gameId);
     
-    const isCompleted = completedTodayIds.has(gameId);
-    
-    if (isCompleted) {
-      const today = new Date().toISOString().split('T')[0];
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session) {
-        const { error } = await supabase
-          .from('daily_progress')
-          .delete()
-          .eq('user_id', session.user.id)
-          .eq('game_id', gameId)
-          .eq('completed_date', today);
-          
-        if (!error) {
-          await loadData();
-        }
-      }
+    const { error } = await supabase.rpc('mark_game_completed', {
+      p_game_id: gameId
+    });
+
+    if (!error) {
+      await loadData();
     } else {
-      const { error } = await supabase.rpc('mark_game_completed', {
-        p_game_id: gameId
-      });
-  
-      if (!error) {
-        await loadData();
-      } else {
-        console.error("Error marcando completado:", error);
-      }
+      console.error("Error marcando completado:", error);
     }
     
     setIsMarking(null);
@@ -245,25 +224,15 @@ const handleAddGame = async (e: React.FormEvent) => {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) throw new Error('No session');
 
-      let rawUrl = newGameUrl.trim();
-      if (!rawUrl.startsWith("http://") && !rawUrl.startsWith("https://")) {
-        rawUrl = "https://" + rawUrl;
+      let finalLogoUrl = null;
+      if (logoFile) {
+        finalLogoUrl = await uploadLogo(logoFile);
       }
-      
-      let normalizedUrl = rawUrl;
-      try {
-        const parsed = new URL(rawUrl);
-        normalizedUrl = parsed.href;
-        if (normalizedUrl.endsWith('/')) {
-            normalizedUrl = normalizedUrl.slice(0, -1);
-        }
-      } catch (err) {
-        // fallback if invalid URL
-        if (normalizedUrl.endsWith('/')) {
-            normalizedUrl = normalizedUrl.slice(0, -1);
-        }
+
+      let normalizedUrl = newGameUrl.trim();
+      if (!normalizedUrl.startsWith("http://") && !normalizedUrl.startsWith("https://")) {
+        normalizedUrl = "https://" + normalizedUrl;
       }
-      
       let globalGameId;
 
       const { data: existingGlobal, } = await supabase
@@ -275,21 +244,13 @@ const handleAddGame = async (e: React.FormEvent) => {
       if (existingGlobal) {
         globalGameId = existingGlobal.id;
       } else {
-        // Extract domain for favicon
-        let domain = "";
-        try {
-            domain = new URL(normalizedUrl).hostname;
-        } catch(e) {}
-        
-        const generatedFavicon = domain ? `https://www.google.com/s2/favicons?domain=${domain}&sz=128` : null;
-
         const { data: newGlobal, error: newGlobalError } = await supabase
           .from('global_games')
           .insert({
             url: normalizedUrl,
-            name: newGameName.trim() || 'New Game',
-            color: '#333333',
-            logo_url: generatedFavicon
+            name: newGameName.trim(),
+            color: newGameColor,
+            logo_url: finalLogoUrl
           })
           .select()
           .single();
@@ -300,9 +261,9 @@ const handleAddGame = async (e: React.FormEvent) => {
       const { error } = await supabase.from('user_games').insert({
         user_id: session.user.id,
         global_game_id: globalGameId,
-        custom_name: null,
-        custom_color: null,
-        custom_logo_url: null
+        custom_name: existingGlobal && existingGlobal.name !== newGameName.trim() ? newGameName.trim() : null,
+        custom_color: existingGlobal && existingGlobal.color !== newGameColor ? newGameColor : null,
+        custom_logo_url: finalLogoUrl
       });
 
       if (error) throw error;
@@ -380,15 +341,15 @@ return (
   
   // Date formatting
   const today = new Date();
-  
-  
+  const options: Intl.DateTimeFormatOptions = { weekday: 'long', month: 'long', day: 'numeric' };
+  const dateString = today.toLocaleDateString('en-US', options);
 
   const dismissRecommendations = () => {
     localStorage.setItem('hideRecommendations', 'true');
     setShowRecommendations(false);
   };
 
-  
+  const daysOfWeek = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
   const todayIndex = (today.getDay() + 6) % 7; // Monday = 0, Sunday = 6
   
   const getDayStatus = (offsetFromToday: number) => {
@@ -402,49 +363,78 @@ return (
 
   return (
     <div className="space-y-8">
-      {/* Seamless Minimalist Hero */}
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-6 mb-2">
-          <div className="flex-1 space-y-3">
-            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-foreground">
-              {totalGames === 0 
-                ? 'Start by adding your first game.'
-                : remainingGames === 0 
-                  ? 'You have completed all your games today!' 
-                  : `You have ${remainingGames} game${remainingGames === 1 ? "" : "s"} left to complete today.`}
-            </h1>
-            
-            {/* Weekly Progress Bar */}
-            <div className="flex items-center space-x-2 mt-2">
-              {[0, 1, 2, 3, 4, 5, 6].map((dayIndex) => {
-                const offset = todayIndex - dayIndex;
-                const isFuture = offset < 0;
-                const isCompleted = !isFuture && getDayStatus(offset);
-                const isToday = offset === 0;
-                return (
-                  <div key={dayIndex} className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs transition-all ${
-                      isCompleted 
-                        ? 'bg-foreground text-background shadow-sm' 
-                        : isToday
-                          ? 'bg-muted text-foreground ring-2 ring-primary ring-offset-2 ring-offset-background'
-                          : isFuture
-                            ? 'bg-transparent text-muted-foreground/30 border border-border/50'
-                            : 'bg-muted text-muted-foreground'
-                    }`}>
-                    {['S', 'M', 'T', 'W', 'T', 'F', 'S'][(new Date(new Date().setDate(new Date().getDate() - offset))).getDay()]}
-                  </div>
-                );
-              })}
-            </div>
+      {/* Hero Header */}
+      <div className="bg-card border border-border rounded-3xl p-6 sm:p-10 shadow-sm flex flex-col sm:flex-row items-center sm:items-start justify-between gap-6 relative overflow-hidden">
+        {/* Background Accent */}
+        <div className="absolute -top-24 -right-24 w-48 h-48 bg-primary/10 rounded-full blur-3xl pointer-events-none"></div>
+
+        <div className="flex flex-col items-center sm:items-start z-10 w-full sm:w-auto flex-1">
+          <div className="flex items-center text-primary font-semibold mb-2">
+            <Calendar className="w-5 h-5 mr-2" />
+            <span className="capitalize">{dateString}</span>
           </div>
+          <h1 className="text-4xl sm:text-5xl font-extrabold text-foreground tracking-tight mb-2 text-center sm:text-left">
+            Your Progress
+          </h1>
+          <p className="text-muted-foreground text-lg text-center sm:text-left mb-6">
+            {totalGames === 0 
+              ? 'Start by adding your first game.'
+              : remainingGames === 0 
+                ? 'You have completed all your games today!' 
+                : `You have ${remainingGames} game${remainingGames === 1 ? "" : "s"} left to complete today.`}
+          </p>
           
-          <button
-            onClick={openAddModal}
-            className="flex items-center justify-center py-2.5 px-5 text-sm font-bold rounded-xl text-primary-foreground bg-primary hover:opacity-90 transition-colors shadow-sm whitespace-nowrap w-full sm:w-auto"
-          >
-            <Plus className="w-4 h-4 mr-1.5" />
-            Add Game
-          </button>
+          {/* Weekly Progress Bar */}
+          <div className="flex items-center space-x-2 mt-2 w-full max-w-xs justify-center sm:justify-start">
+            {[0, 1, 2, 3, 4, 5, 6].map((dayIndex) => {
+              const offset = todayIndex - dayIndex;
+              const isFuture = offset < 0;
+              const isCompleted = !isFuture && getDayStatus(offset);
+              const isToday = offset === 0;
+              return (
+                <div key={dayIndex} className="flex flex-col items-center">
+                  <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs mb-1 transition-all ${
+                    isCompleted 
+                      ? 'bg-primary text-primary-foreground shadow-sm' 
+                      : isToday && remainingGames === 0
+                        ? 'bg-primary text-primary-foreground shadow-sm'
+                        : isToday
+                          ? 'border-2 border-primary text-primary'
+                          : isFuture
+                            ? 'bg-background text-muted-foreground/30 border border-border/50'
+                            : 'bg-muted text-muted-foreground border border-border'
+                  }`}>
+                    {daysOfWeek[dayIndex]}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
         </div>
+
+        <div className="flex flex-col items-center justify-center bg-background rounded-2xl p-6 border border-border min-w[160px] z-10 shadow-sm">
+          <span className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-1">Global Streak</span>
+          <div className="flex items-center text-orange-500">
+            <Flame className="w-10 h-10 mr-1" />
+            <span className="text-5xl font-black">{profile?.global_streak || 0}</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Catalog Header */}
+      <div className="flex justify-between items-end flex-wrap gap-4 mt-8 mb-4">
+        <div>
+          <h2 className="text-2xl font-bold tracking-tight text-foreground">Your Catalog</h2>
+        </div>
+        
+        <button
+          onClick={openAddModal}
+          className="flex items-center justify-center py-2 px-4 text-sm font-bold rounded-lg text-primary-foreground bg-primary hover:opacity-90 transition-colors shadow-sm"
+        >
+          <Plus className="w-4 h-4 mr-1.5" />
+          Add Game
+        </button>
+      </div>
 
       {games.length === 0 ? (
         <div className="text-center py-12 bg-card rounded-2xl border border-border shadow-sm mb-8">
@@ -459,116 +449,99 @@ return (
           </button>
         </div>
       ) : (
-        <div className="flex flex-col sm:grid sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-5 mb-8">
-            {games.map((game) => {
-              const isCompleted = completedTodayIds.has(game.id);
-  
-              return (
-                <div 
-                  key={game.id}
-                  className="group relative flex flex-row sm:flex-col items-center sm:items-start justify-between p-4 sm:p-5 rounded-xl sm:rounded-2xl border border-border bg-card hover:bg-muted/30 transition-all sm:hover:border-primary/50 gap-4"
-                >
-                  {/* Invisible Link covering the whole card for Play */}
-                  <a 
-                    href={game.global_games?.url || ""}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="absolute inset-0 z-0 rounded-xl sm:rounded-2xl"
-                    aria-label={`Play ${game.custom_name || game.global_games?.name}`}
-                  ></a>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 mb-8">
+          {games.map((game) => {
+            const isCompleted = completedTodayIds.has(game.id);
 
-                  {/* Absolute Edit/Delete Menu (Desktop hover) */}
-                  <div className="hidden sm:flex absolute top-3 right-3 items-center space-x-1 opacity-0 group-hover:opacity-100 transition-opacity z-20">
-                    <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); openEditModal(game); }} className="p-1.5 text-muted-foreground hover:text-foreground transition-colors rounded-md hover:bg-background shadow-sm border border-border bg-card relative" title="Edit">
-                      <Pencil className="w-3.5 h-3.5" />
-                    </button>
-                    <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleDeleteGame(game); }} className="p-1.5 text-muted-foreground hover:text-destructive transition-colors rounded-md hover:bg-destructive/10 shadow-sm border border-border bg-card relative" title="Delete">
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-
-                  <div className="flex items-center space-x-4 min-w-0 flex-1 w-full z-10 pointer-events-none">
-                    {getGameLogo(game) ? (
-                      <img src={getGameLogo(game)} alt={(game.custom_name || game.global_games?.name || "")} className="w-12 h-12 sm:w-14 sm:h-14 rounded-xl object-cover shadow-sm border border-border flex-shrink-0" />
-                    ) : (
-                      <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-xl shadow-sm border border-border flex items-center justify-center text-white font-bold text-lg sm:text-xl flex-shrink-0" style={{ backgroundColor: (game.custom_color || game.global_games?.color || "#333333") || '#333' }}>
-                        {(game.custom_name || game.global_games?.name || "").charAt(0).toUpperCase()}
-                      </div>
-                    )}
+            return (
+              <div 
+                key={game.id} 
+                className="group flex flex-col justify-between overflow-hidden rounded-2xl border border-border bg-card transition-all duration-300 hover:shadow-lg hover:border-primary/50"
+              >
+                <div className="p-5 pb-4 flex flex-col flex-grow">
+                  <div className="flex justify-between items-start mb-4">
+                    <div className="flex items-center space-x-3 min-w-0">
+                      {getGameLogo(game) ? (
+                        <img src={getGameLogo(game)} alt={(game.custom_name || game.global_games?.name || "")} className="w-12 h-12 rounded-xl object-cover shadow-sm flex-shrink-0 border border-border" />
+                      ) : (
+                        <div className="w-12 h-12 rounded-xl shadow-sm flex-shrink-0 border border-border flex items-center justify-center text-white font-bold text-lg" style={{ backgroundColor: (game.custom_color || game.global_games?.color || "#333333") || '#333' }}>
+                          {(game.custom_name || game.global_games?.name || "").charAt(0).toUpperCase()}
+                        </div>
+                      )}
+                      <h3 className="text-lg font-bold text-foreground truncate" title={(game.custom_name || game.global_games?.name || "")}>{(game.custom_name || game.global_games?.name || "")}</h3>
+                    </div>
                     
-                    <div className="flex flex-col min-w-0 sm:pr-8">
-                      <h3 className="text-lg font-bold text-foreground truncate" title={(game.custom_name || game.global_games?.name || "")}>
-                        {(game.custom_name || game.global_games?.name || "")}
-                      </h3>
+                    {/* Actions Menu (Edit/Delete) */}
+                    <div className="flex space-x-1 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0 ml-2 bg-background/80 rounded-lg p-1 backdrop-blur-sm border border-border shadow-sm">
+                      <button onClick={() => openEditModal(game)} className="p-1.5 text-muted-foreground hover:text-foreground transition-colors rounded-md hover:bg-muted" title="Edit">
+                        <Pencil className="w-3.5 h-3.5" />
+                      </button>
+                      <button onClick={() => handleDeleteGame(game)} className="p-1.5 text-muted-foreground hover:text-destructive transition-colors rounded-md hover:bg-destructive/10" title="Delete">
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                  
+                  <div className="mt-auto">
+                    <div className="flex items-center justify-between bg-background p-3 rounded-xl border border-border">
+                      <div className="flex flex-col">
+                        <span className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground mb-0.5">Current Streak</span>
+                        <div className="flex items-center">
+                          <Flame className={`w-4 h-4 mr-1 ${game.current_streak > 0 ? 'text-orange-500' : 'text-muted-foreground'}`} />
+                          <span className="font-extrabold text-foreground">{game.current_streak}</span>
+                        </div>
+                      </div>
                       
-                      <div className="flex items-center space-x-3 mt-0.5 sm:mt-1">
-                        {/* Relaxed custom color Streak */}
-                        {game.current_streak > 0 && (
-                          <div className="flex items-center font-bold text-sm" style={{ color: '#D4A336' }}>
-                            <Flame className="w-3.5 h-3.5 mr-1" />
-                            {game.current_streak}
-                          </div>
-                        )}
-                        
-                        {/* Status inline */}
-                        <div className="hidden sm:flex items-center text-sm font-semibold">
+                      <div className="flex flex-col items-end">
+                        <span className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground mb-0.5">Status today</span>
+                        <div className="flex items-center font-bold text-sm">
                           {isCompleted ? (
-                            <span className="text-foreground/60 flex items-center"><CheckCircle2 className="w-3.5 h-3.5 mr-1" /> Done</span>
+                            <span className="text-green-500 flex items-center"><CheckCircle2 className="w-4 h-4 mr-1" /> Completed</span>
                           ) : (
-                            <span className="text-muted-foreground/50 flex items-center"><Circle className="w-3.5 h-3.5 mr-1" /> Pending</span>
+                            <span className="text-muted-foreground flex items-center"><Circle className="w-4 h-4 mr-1" /> Pending</span>
                           )}
                         </div>
                       </div>
                     </div>
                   </div>
-                  
-                  {/* Buttons wrapper (z-10 so they are clickable above the absolute link) */}
-                  <div className="flex items-center justify-end space-x-2 w-auto sm:w-full sm:mt-2 z-10 relative">
-                    
-                    {/* Mobile Edit/Delete */}
-                    <div className="flex sm:hidden items-center space-x-1 mr-1">
-                      <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); openEditModal(game); }} className="p-2 text-muted-foreground hover:text-foreground relative" title="Edit">
-                        <Pencil className="w-4 h-4" />
-                      </button>
-                    </div>
-                    
-                    <a 
-                      href={game.global_games?.url || ""}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="hidden sm:flex flex-1 items-center justify-center py-2.5 px-4 bg-background hover:bg-muted border border-border text-foreground font-bold rounded-xl transition-colors text-sm shadow-sm relative"
-                    >
-                      <Play className="w-4 h-4 mr-2" />
-                      Play
-                    </a>
-
-                    <button
-                      onClick={(e) => handleMarkCompleted(e, game.id)}
-                      disabled={isMarking === game.id}
-                      className={`relative flex items-center justify-center py-2 px-3 sm:py-2.5 sm:px-4 sm:flex-1 font-bold rounded-lg sm:rounded-xl transition-colors disabled:opacity-50 text-sm whitespace-nowrap shadow-sm ${
-                        isCompleted 
-                          ? 'bg-muted text-muted-foreground hover:bg-muted/70 border border-border' 
-                          : 'bg-primary text-primary-foreground hover:opacity-90'
-                      }`}
-                    >
-                      {isMarking === game.id ? (
-                         <Loader2 className="w-4 h-4 sm:mr-2 animate-spin" />
-                      ) : isCompleted ? (
-                         <CheckCircle2 className="w-4 h-4 sm:mr-2" />
-                      ) : (
-                         <CheckCircle2 className="w-4 h-4 sm:mr-2" />
-                      )}
-                      <span className="hidden sm:inline">{isCompleted ? 'Undo' : 'Mark Done'}</span>
-                      <span className="sm:hidden ml-1.5">{isCompleted ? 'Undo' : 'Done'}</span>
-                    </button>
-                  </div>
                 </div>
-              );
-            })}
-          </div>
-        )}
 
-        {showRecommendations && (
+                <div className="p-3 bg-muted/50 border-t border-border flex space-x-2">
+                  <a 
+                    href={(game.global_games?.url || "")}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex-1 flex items-center justify-center py-2 px-4 bg-background hover:bg-card border border-border text-foreground font-bold rounded-lg transition-colors text-sm shadow-sm"
+                  >
+                    <Play className="w-4 h-4 mr-1.5" />
+                    Play
+                  </a>
+                  
+                  <button
+                    onClick={() => handleMarkCompleted(game.id)}
+                    disabled={isCompleted || isMarking === game.id}
+                    className={`flex-1 flex items-center justify-center py-2 px-4 font-bold rounded-lg transition-colors text-sm shadow-sm ${
+                      isCompleted 
+                        ? 'bg-green-500/20 text-green-600 dark:text-green-400 cursor-default' 
+                        : 'bg-primary hover:opacity-90 text-primary-foreground'
+                    }`}
+                  >
+                    {isMarking === game.id ? (
+                      <Loader2 className="animate-spin h-4 w-4" />
+                    ) : isCompleted ? (
+                      'Completed'
+                    ) : (
+                      'Mark Done'
+                    )}
+                  </button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {showRecommendations && (
         <div className="bg-muted/30 p-6 rounded-3xl border border-border mt-8">
           <div className="flex justify-between items-center mb-6">
             <h3 className="text-lg font-bold text-foreground">Popular Recommendations</h3>
@@ -657,8 +630,7 @@ return (
                     />
                 </div>
                 
-                {editingGame && (
-                  <div className="space-y-1.5">
+                <div className="space-y-1.5">
                   <label htmlFor="name" className="text-sm font-bold text-foreground">Game Name</label>
                   <input
                     id="name"
@@ -670,10 +642,8 @@ return (
                     className="w-full px-4 py-2.5 border bg-background border-border rounded-xl text-foreground focus:outline-none focus:ring-2 focus:ring-primary shadow-sm transition-shadow"
                   />
                 </div>
-                  )}
 
-                {editingGame && (
-                  <div className="space-y-1.5">
+                <div className="space-y-1.5">
                   <label htmlFor="logo" className="text-sm font-bold text-foreground">Game Logo (Optional)</label>
                   <div className="flex items-center justify-center w-full">
                     <label htmlFor="logo" className="flex flex-col items-center justify-center w-full h-24 border-2 border-dashed border-border rounded-xl cursor-pointer bg-background hover:bg-muted/50 transition-colors">
@@ -691,8 +661,22 @@ return (
                     </label>
                   </div>
                 </div>
-                  )}
-                  
+
+                <div className="space-y-1.5">
+                  <label htmlFor="color" className="text-sm font-bold text-foreground">Decorative Color</label>
+                  <div className="flex items-center space-x-3">
+                    <div className="relative overflow-hidden rounded-xl shadow-sm border border-border w-16 h-10">
+                      <input
+                        id="color"
+                        type="color"
+                        value={newGameColor}
+                        onChange={(e) => setNewGameColor(e.target.value)}
+                        className="absolute -top-2 -left-2 w-24 h-24 cursor-pointer"
+                      />
+                    </div>
+                    <span className="text-sm text-muted-foreground font-mono font-medium">{newGameColor}</span>
+                  </div>
+                </div>
               </div>
 
               {addError && (

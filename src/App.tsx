@@ -8,7 +8,7 @@ import { Profile } from './pages/Profile';
 import { Friends } from './pages/Friends';
 import type { Session } from '@supabase/supabase-js';
 import { useTheme } from './hooks/useTheme';
-import { LanguageProvider } from './hooks/useLanguage';
+
 
 function App() {
   const [session, setSession] = useState<Session | null>(null);
@@ -42,7 +42,7 @@ function App() {
   }
 
   return (
-    <LanguageProvider>
+    
       <BrowserRouter>
         <Routes>
           {/* Ruta pública */}
@@ -67,7 +67,7 @@ function App() {
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </BrowserRouter>
-    </LanguageProvider>
+    
   );
 }
 
