@@ -8,6 +8,21 @@ interface FollowProfile extends Profile {
 }
 
 export function Friends() {
+  const getGameLogo = (game: any) => {
+    const url = game.custom_logo_url || game.global_games?.logo_url;
+    if (url) return url;
+    const gameUrl = game.global_games?.url;
+    if (gameUrl) {
+      try {
+        const domain = new URL(gameUrl).hostname;
+        return `https://www.google.com/s2/favicons?domain=${domain}&sz=128`;
+      } catch {
+        return undefined;
+      }
+    }
+    return undefined;
+  };
+
   const [activeTab, setActiveTab] = useState<'ranking' | 'following' | 'followers' | 'search'>('ranking');
   const [currentUser, setCurrentUser] = useState<string | null>(null);
   
@@ -195,7 +210,9 @@ export function Friends() {
 
   const isFollowing = (userId: string) => following.some(f => f.id === userId);
 
-  return (
+  
+  
+return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4">
         <div>
@@ -516,8 +533,8 @@ export function Friends() {
                       <div key={game.id} className="p-4 rounded-2xl flex flex-col justify-between h-36 transition-transform hover:-translate-y-1 shadow-sm border border-transparent" style={{ backgroundColor: (game.custom_color || game.global_games?.color || "#333333") || '#333' }}>
                         <div className="flex justify-between items-start">
                           <div className="flex items-center space-x-2 min-w-0">
-                            {(game.custom_logo_url || game.global_games?.logo_url || undefined) && (
-                               <img src={(game.custom_logo_url || game.global_games?.logo_url || undefined)} alt="" className="w-8 h-8 rounded-lg object-cover shadow-sm bg-white/20" />
+                            {getGameLogo(game) && (
+                               <img src={getGameLogo(game)} alt="" className="w-8 h-8 rounded-lg object-cover shadow-sm bg-white/20" />
                             )}
                             <h4 className="font-bold text-white text-lg truncate">{(game.custom_name || game.global_games?.name || "")}</h4>
                           </div>

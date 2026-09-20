@@ -4,6 +4,22 @@ import { Flame, Play, CheckCircle2, Circle, Plus, X, Loader2, Pencil, Trash2, Ca
 import type { Game, Profile } from '../types';
 
 export function Dashboard() {
+  // Helper to get logo or favicon
+  const getGameLogo = (game: any) => {
+    const url = game.custom_logo_url || game.global_games?.logo_url;
+    if (url) return url;
+    const gameUrl = game.global_games?.url;
+    if (gameUrl) {
+      try {
+        const domain = new URL(gameUrl).hostname;
+        return `https://www.google.com/s2/favicons?domain=${domain}&sz=128`;
+      } catch {
+        return undefined;
+      }
+    }
+    return undefined;
+  };
+
   const [profile, setProfile] = useState<Profile | null>(null);
   const [games, setGames] = useState<Game[]>([]);
   const [completedTodayIds, setCompletedTodayIds] = useState<Set<string>>(new Set());
@@ -260,7 +276,9 @@ export function Dashboard() {
   }, [profile, games.length]);
 
   if (isLoading) {
-    return (
+    
+  
+return (
       <div className="flex justify-center items-center h-64">
         <Loader2 className="w-10 h-10 animate-spin text-primary" />
       </div>
@@ -394,8 +412,8 @@ export function Dashboard() {
                 <div className="p-5 pb-4 flex flex-col flex-grow">
                   <div className="flex justify-between items-start mb-4">
                     <div className="flex items-center space-x-3 min-w-0">
-                      {(game.custom_logo_url || game.global_games?.logo_url || undefined) ? (
-                        <img src={(game.custom_logo_url || game.global_games?.logo_url || undefined)} alt={(game.custom_name || game.global_games?.name || "")} className="w-12 h-12 rounded-xl object-cover shadow-sm flex-shrink-0 border border-border" />
+                      {getGameLogo(game) ? (
+                        <img src={getGameLogo(game)} alt={(game.custom_name || game.global_games?.name || "")} className="w-12 h-12 rounded-xl object-cover shadow-sm flex-shrink-0 border border-border" />
                       ) : (
                         <div className="w-12 h-12 rounded-xl shadow-sm flex-shrink-0 border border-border flex items-center justify-center text-white font-bold text-lg" style={{ backgroundColor: (game.custom_color || game.global_games?.color || "#333333") || '#333' }}>
                           {(game.custom_name || game.global_games?.name || "").charAt(0).toUpperCase()}
