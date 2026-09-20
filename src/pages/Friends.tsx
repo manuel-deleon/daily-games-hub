@@ -220,10 +220,10 @@ return (
           
         </div>
         
-        <div className="flex border-b border-border w-full sm:w-auto overflow-x-auto gap-2">
+        <div className="flex border-b border-border w-full sm:w-auto overflow-x-auto gap-2 [&::-webkit-scrollbar]:hidden" style={{ scrollbarWidth: "none" }}>
           <button
             onClick={() => setActiveTab('ranking')}
-            className={`flex-1 sm:flex-none whitespace-nowrap px-4 py-3 text-sm font-bold transition-all border-b-2 -mb-px flex items-center justify-center ${
+            className={`flex-1 sm:flex-none whitespace-nowrap px-4 py-2 text-sm font-bold transition-all border-b-2 -mb-px flex items-center justify-center ${
               activeTab === 'ranking' ? 'border-primary text-foreground' : 'border-transparent text-muted-foreground hover:text-foreground hover:border-border'
             }`}
           >
@@ -232,13 +232,13 @@ return (
           </button>
           <button
             onClick={() => setActiveTab('following')}
-            className={`flex-1 sm:flex-none whitespace-nowrap px-4 py-3 text-sm font-bold transition-all border-b-2 -mb-px ${
+            className={`flex-1 sm:flex-none whitespace-nowrap px-4 py-2 text-sm font-bold transition-all border-b-2 -mb-px ${
               activeTab === 'following' ? 'border-primary text-foreground' : 'border-transparent text-muted-foreground hover:text-foreground hover:border-border'
             }`}
           >Following</button>
           <button
             onClick={() => setActiveTab('followers')}
-            className={`flex-1 sm:flex-none whitespace-nowrap px-4 py-3 text-sm font-bold transition-all border-b-2 -mb-px flex items-center justify-center ${
+            className={`flex-1 sm:flex-none whitespace-nowrap px-4 py-2 text-sm font-bold transition-all border-b-2 -mb-px flex items-center justify-center ${
               activeTab === 'followers' ? 'border-primary text-foreground' : 'border-transparent text-muted-foreground hover:text-foreground hover:border-border'
             }`}
           >
@@ -249,7 +249,7 @@ return (
           </button>
           <button
             onClick={() => setActiveTab('search')}
-            className={`flex-1 sm:flex-none whitespace-nowrap px-4 py-3 text-sm font-bold transition-all border-b-2 -mb-px flex items-center justify-center ${
+            className={`flex-1 sm:flex-none whitespace-nowrap px-4 py-2 text-sm font-bold transition-all border-b-2 -mb-px flex items-center justify-center ${
               activeTab === 'search' ? 'border-primary text-foreground' : 'border-transparent text-muted-foreground hover:text-foreground hover:border-border'
             }`}
           >
@@ -435,10 +435,10 @@ return (
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   placeholder="Search by username..." 
-                  className="w-full pl-12 pr-4 py-3 border bg-background border-border rounded-xl text-foreground font-medium focus:ring-2 focus:ring-primary focus:outline-none shadow-sm transition-shadow"
+                  className="w-full pl-12 pr-4 py-2 border bg-background border-border rounded-xl text-foreground font-medium focus:ring-2 focus:ring-primary focus:outline-none shadow-sm transition-shadow"
                 />
               </div>
-              <button type="submit" disabled={isSearching || !searchQuery.trim()} className="px-6 py-3 bg-primary text-primary-foreground font-bold rounded-xl hover:opacity-90 disabled:opacity-50 transition-colors shadow-sm">
+              <button type="submit" disabled={isSearching || !searchQuery.trim()} className="px-6 py-2 bg-primary text-primary-foreground font-bold rounded-xl hover:opacity-90 disabled:opacity-50 transition-colors shadow-sm">
                 {isSearching ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Search'}
               </button>
             </form>
@@ -526,7 +526,7 @@ return (
                   <p className="text-muted-foreground font-medium">This profile has no public games.</p>
                 </div>
               ) : (
-                <div className="flex flex-col space-y-3">
+                <div className="flex flex-col sm:grid sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-5">
                   {userGames.map((game) => {
                     const alreadyHaveIt = myGameUrls.has(game.global_game_id);
                     return (
