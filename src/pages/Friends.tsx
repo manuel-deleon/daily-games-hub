@@ -394,7 +394,7 @@ export function Friends() {
                           onClick={() => handleFollow(user.id)}
                           className="px-4 py-2 bg-primary/10 text-primary hover:bg-primary hover:text-primary-foreground text-sm font-bold rounded-lg transition-colors"
                         >
-                          Devolver
+                          Follow back
                         </button>
                       ) : (
                         <span className="text-sm font-bold text-muted-foreground px-4 py-2 bg-muted rounded-lg">Friends</span>
@@ -456,7 +456,7 @@ export function Friends() {
                           className="flex items-center px-4 py-2 bg-primary text-primary-foreground hover:opacity-90 text-sm font-bold rounded-lg transition-colors shadow-sm"
                         >
                           <UserPlus className="w-4 h-4 mr-2" />
-                          Seguir
+                          Follow
                         </button>
                       )}
                     </div>
@@ -531,9 +531,7 @@ export function Friends() {
                         <div className="flex justify-end mt-4">
                           {alreadyHaveIt ? (
                             <div className="flex items-center px-4 py-2 bg-white/20 text-white rounded-xl text-sm font-bold backdrop-blur-sm">
-                              <CheckCircle2 className="w-4 h-4 mr-1.5" />
-                              Ya lo tienes
-                            </div>
+                              <CheckCircle2 className="w-4 h-4 mr-1.5" />Already in catalog</div>
                           ) : (
                             <button
                               onClick={() => handleCopyGame(game)}
@@ -541,7 +539,7 @@ export function Friends() {
                               className="flex items-center px-4 py-2 bg-black/30 hover:bg-black/50 text-white rounded-xl text-sm font-bold transition-colors disabled:opacity-50 backdrop-blur-sm"
                             >
                               {copyingId === game.id ? <Loader2 className="w-4 h-4 mr-1.5 animate-spin" /> : <Copy className="w-4 h-4 mr-1.5" />}
-                              Copiar a mi catálogo
+                              Copy to my catalog
                             </button>
                           )}
                         </div>

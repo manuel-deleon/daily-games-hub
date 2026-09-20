@@ -554,7 +554,7 @@ export function Dashboard() {
                     id="name"
                     type="text"
                     required
-                    placeholder="Ej. Wordle, Framed..."
+                    placeholder="e.g. Wordle, Framed..."
                     value={newGameName}
                     onChange={(e) => setNewGameName(e.target.value)}
                     className="w-full px-4 py-2.5 border bg-background border-border rounded-xl text-foreground focus:outline-none focus:ring-2 focus:ring-primary shadow-sm transition-shadow"

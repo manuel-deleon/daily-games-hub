@@ -25,12 +25,12 @@ export function Auth() {
 
     try {
       if (isResettingPassword) {
-        if (!email) throw new Error('Por favor ingresa tu correo para restablecer tu contraseña.');
+        if (!email) throw new Error('Please enter your email to reset your password.');
         const { error } = await supabase.auth.resetPasswordForEmail(email, {
           redirectTo: `${window.location.origin}/profile`,
         });
         if (error) throw error;
-        setMessage('Check your email para el enlace de recuperación.');
+        setMessage('Check your email for the recovery link.');
       } else if (isLogin) {
         const { error } = await supabase.auth.signInWithPassword({
           email,
@@ -39,7 +39,7 @@ export function Auth() {
         if (error) throw error;
       } else {
         if (!fullName.trim() || !username.trim()) {
-          throw new Error('Por favor completa todos los campos.');
+          throw new Error('Please fill in all fields.');
         }
 
         const { error } = await supabase.auth.signUp({
@@ -53,10 +53,10 @@ export function Auth() {
           },
         });
         if (error) throw error;
-        setMessage('Check your email para confirmar tu cuenta.');
+        setMessage('Check your email to confirm your account.');
       }
     } catch (err: any) {
-      setError(err.message || 'Ocurrió un error en la autenticación');
+      setError(err.message || 'An error occurred during authentication.');
     } finally {
       setIsLoading(false);
     }
@@ -74,7 +74,7 @@ export function Auth() {
       });
       if (error) throw error;
     } catch (err: any) {
-      setError(err.message || 'Error con Google Auth');
+      setError(err.message || 'Error with Google Auth');
     } finally {
       setIsLoading(false);
     }
@@ -125,7 +125,7 @@ export function Auth() {
                       type="text"
                       required={!isLogin && !isResettingPassword}
                       className="block w-full pl-10 pr-3 py-2.5 border bg-background border-border rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all sm:text-sm"
-                      placeholder="Ej. juanperez"
+                      placeholder="e.g. johndoe"
                       value={username}
                       onChange={(e) => setUsername(e.target.value)}
                     />
