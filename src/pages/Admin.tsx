@@ -17,6 +17,7 @@ export function Admin() {
 
   const [editingGame, setEditingGame] = useState<any | null>(null);
   const [editingUser, setEditingUser] = useState<any | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
 
   useEffect(() => {
     checkAdmin();
@@ -59,18 +60,48 @@ export function Admin() {
   };
 
   // Game Handlers
+  const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !editingGame) return;
+
+    setIsUploading(true);
+    try {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${Date.now()}_${Math.random()}.${fileExt}`;
+      const filePath = `admin-uploads/${fileName}`;
+      
+      const { error: uploadError } = await supabase.storage
+        .from('game-logos')
+        .upload(filePath, file);
+
+      if (uploadError) throw uploadError;
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('game-logos')
+        .getPublicUrl(filePath);
+
+      setEditingGame({ ...editingGame, logo_url: publicUrl });
+    } catch (error) {
+      console.error('Error uploading logo:', error);
+      alert('Error uploading image. Is the game-logos bucket created and public?');
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
   const handleSaveGame = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingGame) return;
-    await supabase.from('global_games').update({ name: editingGame.name, url: editingGame.url, logo_url: editingGame.logo_url }).eq('id', editingGame.id);
-    setEditingGame(null);
-    loadAdminData();
+    const { error } = await supabase.from('global_games').update({ name: editingGame.name, url: editingGame.url, logo_url: editingGame.logo_url }).eq('id', editingGame.id);
+    if (error) alert("Error saving game: " + error.message);
+    else { setEditingGame(null); loadAdminData(); }
   };
 
   const handleDeleteGame = async (id: string) => {
     if (confirm('Are you sure you want to permanently delete this global game? All users will lose it.')) {
-      await supabase.from('global_games').delete().eq('id', id);
-      loadAdminData();
+      const { error } = await supabase.from('global_games').delete().eq('id', id);
+      if (error) alert("Error deleting game: " + error.message);
+      else loadAdminData();
     }
   };
 
@@ -78,17 +109,16 @@ export function Admin() {
   const handleSaveUser = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingUser) return;
-    await supabase.from('profiles').update({ username: editingUser.username, avatar_url: editingUser.avatar_url }).eq('id', editingUser.id);
-    setEditingUser(null);
-    loadAdminData();
+    const { error } = await supabase.from('profiles').update({ username: editingUser.username, avatar_url: editingUser.avatar_url }).eq('id', editingUser.id);
+    if (error) alert("Error saving user: " + error.message);
+    else { setEditingUser(null); loadAdminData(); }
   };
 
   const handleDeleteUser = async (id: string) => {
     if (confirm('WARNING: Are you sure you want to completely ban and delete this user?')) {
-      // Deleting from profiles will cascade if set, otherwise we delete manual records.
-      // Ideally we call the reset_user_account logic, but for now we just delete profiles row.
-      await supabase.from('profiles').delete().eq('id', id);
-      loadAdminData();
+      const { error } = await supabase.from('profiles').delete().eq('id', id);
+      if (error) alert("Error deleting user: " + error.message);
+      else loadAdminData();
     }
   };
 
@@ -234,8 +264,20 @@ export function Admin() {
                 <input value={editingGame.url} onChange={e => setEditingGame({...editingGame, url: e.target.value})} className="w-full px-4 py-2 border rounded-xl bg-background" />
               </div>
               <div>
-                <label className="text-sm font-bold block mb-1">Logo URL</label>
-                <input value={editingGame.logo_url || ''} onChange={e => setEditingGame({...editingGame, logo_url: e.target.value})} className="w-full px-4 py-2 border rounded-xl bg-background" />
+                <label className="text-sm font-bold block mb-1">Logo URL or Upload Image</label>
+                <div className="space-y-2">
+                  <input value={editingGame.logo_url || ''} onChange={e => setEditingGame({...editingGame, logo_url: e.target.value})} placeholder="https://..." className="w-full px-4 py-2 border rounded-xl bg-background" />
+                  <div className="relative">
+                    <input 
+                      type="file" 
+                      accept="image/*"
+                      onChange={handleLogoUpload}
+                      disabled={isUploading}
+                      className="block w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-semibold file:bg-primary/10 file:text-primary hover:file:bg-primary/20 cursor-pointer disabled:opacity-50"
+                    />
+                    {isUploading && <Activity className="absolute right-3 top-2 w-5 h-5 animate-spin text-primary" />}
+                  </div>
+                </div>
               </div>
               <button type="submit" className="w-full py-3 bg-primary text-white font-bold rounded-xl flex justify-center items-center"><Save className="w-5 h-5 mr-2" /> Save Changes</button>
             </form>
