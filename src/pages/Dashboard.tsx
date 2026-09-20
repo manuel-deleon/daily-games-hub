@@ -162,19 +162,13 @@ export function Dashboard() {
     const isCompleted = completedTodayIds.has(gameId);
     
     if (isCompleted) {
-      const today = new Date().toISOString().split('T')[0];
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session) {
-        const { error } = await supabase
-          .from('daily_progress')
-          .delete()
-          .eq('user_id', session.user.id)
-          .eq('game_id', gameId)
-          .eq('completed_date', today);
-          
-        if (!error) {
-          await loadData();
-        }
+      const { error } = await supabase.rpc('undo_game_completed', {
+        p_game_id: gameId
+      });
+      if (!error) {
+        await loadData();
+      } else {
+        console.error("Error undoing:", error);
       }
     } else {
       const { error } = await supabase.rpc('mark_game_completed', {
