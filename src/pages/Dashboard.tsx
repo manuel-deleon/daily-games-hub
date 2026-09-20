@@ -391,7 +391,7 @@ export function Dashboard() {
                 key={game.id} 
                 className="group flex flex-col justify-between overflow-hidden rounded-2xl border border-border bg-card transition-all duration-300 hover:shadow-lg hover:border-primary/50"
               >
-                <div className="p-5 flex flex-col flex-grow">
+                <div className="p-5 pb-4 flex flex-col flex-grow">
                   <div className="flex justify-between items-start mb-4">
                     <div className="flex items-center space-x-3 min-w-0">
                       {(game.custom_logo_url || game.global_games?.logo_url || undefined) ? (
@@ -416,7 +416,7 @@ export function Dashboard() {
                   </div>
                   
                   <div className="mt-auto">
-                    <div className="flex items-center justify-between mb-4 bg-background p-3 rounded-xl border border-border">
+                    <div className="flex items-center justify-between bg-background p-3 rounded-xl border border-border">
                       <div className="flex flex-col">
                         <span className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground mb-0.5">Current Streak</span>
                         <div className="flex items-center">
