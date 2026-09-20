@@ -692,21 +692,7 @@ return (
                   </div>
                 </div>
                   )}
-                  <div className="space-y-1.5">
-                  <label htmlFor="color" className="text-sm font-bold text-foreground">Decorative Color</label>
-                  <div className="flex items-center space-x-3">
-                    <div className="relative overflow-hidden rounded-xl shadow-sm border border-border w-16 h-10">
-                      <input
-                        id="color"
-                        type="color"
-                        value={newGameColor}
-                        onChange={(e) => setNewGameColor(e.target.value)}
-                        className="absolute -top-2 -left-2 w-24 h-24 cursor-pointer"
-                      />
-                    </div>
-                    <span className="text-sm text-muted-foreground font-mono font-medium">{newGameColor}</span>
-                  </div>
-                </div>
+                  
               </div>
 
               {addError && (
