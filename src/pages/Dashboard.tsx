@@ -33,6 +33,7 @@ export function Dashboard() {
   const [newGameUrl, setNewGameUrl] = useState('');
   const [newGameColor, setNewGameColor] = useState('#709176');
   const [logoFile, setLogoFile] = useState<File | null>(null);
+  const [addingRec, setAddingRec] = useState<string | null>(null);
   const [isAdding, setIsAdding] = useState(false);
   const [addError, setAddError] = useState<string | null>(null);
 
@@ -594,23 +595,30 @@ return (
                     <span className="font-bold text-foreground truncate">{rec.name}</span>
                   </div>
                   <button
+                    disabled={addingRec === rec.name}
                     onClick={async () => {
-                      const { data: { session } } = await supabase.auth.getSession();
-                      if (session) {
-                        const { data: existingGlobal } = await supabase.from('global_games').select('id').eq('url', rec.url).maybeSingle();
-                        let gId = existingGlobal?.id;
-                        if (!gId) {
-                            const { data: newG } = await supabase.from('global_games').insert({ url: rec.url, name: rec.name, logo_url: rec.icon, color: '#333333' }).select().single();
-                            gId = newG.id;
-                        }
-                        await supabase.from('user_games').insert({ user_id: session.user.id, global_game_id: gId });
+                      setAddingRec(rec.name);
+                      try {
+                        const { data: { session } } = await supabase.auth.getSession();
+                        if (session) {
+                          const { data: existingGlobal } = await supabase.from('global_games').select('id').eq('url', rec.url).maybeSingle();
+                          let gId = existingGlobal?.id;
+                          if (!gId) {
+                              const { data: newG } = await supabase.from('global_games').insert({ url: rec.url, name: rec.name, logo_url: rec.icon, color: '#333333' }).select().single();
+                              gId = newG.id;
+                          }
+                          await supabase.from('user_games').insert({ user_id: session.user.id, global_game_id: gId });
 
-                        await loadData();
+                          await loadData();
+                        }
+                      } finally {
+                        setAddingRec(null);
                       }
                     }}
-                    className="mt-auto py-2 px-3 bg-primary text-primary-foreground hover:opacity-90 rounded-lg text-sm font-bold transition-colors w-full shadow-sm"
+                    className="mt-auto flex items-center justify-center py-2 px-3 bg-primary text-primary-foreground hover:opacity-90 rounded-lg text-sm font-bold transition-colors w-full shadow-sm disabled:opacity-50"
                   >
-                    <Plus className="w-4 h-4 mr-1.5 inline" /> Add
+                    {addingRec === rec.name ? <Loader2 className="w-4 h-4 mr-1.5 animate-spin" /> : <Plus className="w-4 h-4 mr-1.5" />}
+                    Add
                   </button>
                 </div>
               );
