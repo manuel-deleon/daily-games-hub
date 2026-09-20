@@ -6,6 +6,7 @@ import { Layout } from './components/Layout';
 import { Dashboard } from './pages/Dashboard';
 import { Profile } from './pages/Profile';
 import { Friends } from './pages/Friends';
+import { Admin } from './pages/Admin';
 import type { Session } from '@supabase/supabase-js';
 import { useTheme } from './hooks/useTheme';
 
@@ -61,6 +62,7 @@ function App() {
             <Route path="dashboard" element={<Dashboard />} />
             <Route path="profile" element={<Profile />} />
             <Route path="friends" element={<Friends />} />
+            <Route path="admin" element={<Admin />} />
           </Route>
 
           {/* Catch all para URLs inexistentes */}

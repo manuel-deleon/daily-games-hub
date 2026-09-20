@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Outlet, useNavigate, Link, useLocation } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
-import { Flame, User as UserIcon, Users, Bell, Home } from 'lucide-react';
+import { Flame, User as UserIcon, Users, Bell, Home, Shield } from 'lucide-react';
 import type { Profile } from '../types';
 
 
@@ -113,6 +113,15 @@ export function Layout() {
                 <Users className="w-4 h-4" />
                 <span>{'Community'}</span>
               </Link>
+              {profile?.is_admin && (
+                <Link 
+                  to="/admin" 
+                  className={`font-semibold flex items-center space-x-2 transition-colors ${isActive('/admin') ? 'text-primary' : 'text-muted-foreground hover:text-foreground'}`}
+                >
+                  <Shield className="w-4 h-4" />
+                  <span>Admin</span>
+                </Link>
+              )}
             </div>
 
             {/* Right side: User stats & Actions */}
@@ -169,6 +178,15 @@ export function Layout() {
             <UserIcon className="w-5 h-5" />
             <span className="text-[10px] font-semibold">{'Profile'}</span>
           </Link>
+          {profile?.is_admin && (
+            <Link 
+              to="/admin" 
+              className={`flex flex-col items-center justify-center w-full h-full space-y-1 ${isActive('/admin') ? 'text-primary' : 'text-muted-foreground hover:text-foreground'}`}
+            >
+              <Shield className="w-5 h-5" />
+              <span className="text-[10px] font-semibold">Admin</span>
+            </Link>
+          )}
         </div>
       </div>
 

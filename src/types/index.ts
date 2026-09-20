@@ -6,6 +6,7 @@ export interface Profile {
   global_streak: number;
   highest_streak: number;
   created_at: string;
+  is_admin?: boolean;
 }
 
 export interface GlobalGame {
