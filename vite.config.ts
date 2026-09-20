@@ -14,7 +14,7 @@ export default defineConfig({
       manifest: {
         name: 'Daily Games Hub',
         short_name: 'DailyPlay',
-        description: 'Tu hub social para juegos web diarios como Wordle y Connections.',
+        description: 'Your social hub for daily web games like Wordle and Connections.',
         theme_color: '#709176', // Dusty Olive
         background_color: '#fdfdfd', // White
         display: 'standalone',

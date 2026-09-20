@@ -314,7 +314,7 @@ export function Dashboard() {
               ? 'Start by adding your first game.'
               : remainingGames === 0 
                 ? 'You have completed all your games today!' 
-                : `You have${remainingGames === 1 ? '' : 'n'} ${remainingGames} juego${remainingGames === 1 ? '' : 's'} por hacer hoy.`}
+                : `You have ${remainingGames} game${remainingGames === 1 ? "" : "s"} left to complete today.`}
           </p>
           
           {/* Weekly Progress Bar */}

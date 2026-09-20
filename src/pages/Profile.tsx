@@ -149,7 +149,7 @@ export function Profile() {
       {/* Stats Cards */}
       <div className="grid grid-cols-2 gap-4">
         <div className="bg-card border border-border rounded-2xl p-5 shadow-sm flex flex-col items-center sm:items-start">
-          <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">Racha Global</span>
+          <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">Global Streak</span>
           <div className="flex items-center text-orange-500">
             <Flame className="w-8 h-8 mr-1.5" />
             <span className="text-3xl font-black">{profile?.global_streak || 0}</span>

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
-import { Search, UserPlus, Users, Flame, Copy, Loader2, CheckCircle2, X, Bell, Trophy, Hash, Gamepad2 } from 'lucide-react';
+import { Search, UserPlus, Users, Flame, Copy, Loader2, CheckCircle2, X, Trophy, Hash, Gamepad2 } from 'lucide-react';
 import type { Profile, Game } from '../types';
 
 interface FollowProfile extends Profile {
@@ -200,7 +200,7 @@ export function Friends() {
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4">
         <div>
           <h2 className="text-3xl font-bold tracking-tight text-foreground">Community</h2>
-          <p className="text-muted-foreground mt-1">Conecta, compite y descubre nuevos juegos diarios.</p>
+          <p className="text-muted-foreground mt-1">Connect, compete and discover new daily games.</p>
         </div>
         
         <div className="flex bg-muted p-1 rounded-xl w-full sm:w-auto overflow-x-auto shadow-inner">
@@ -218,16 +218,14 @@ export function Friends() {
             className={`flex-1 sm:flex-none whitespace-nowrap px-4 py-2.5 text-sm font-bold rounded-lg transition-all ${
               activeTab === 'following' ? 'bg-background text-foreground shadow-sm ring-1 ring-border' : 'text-muted-foreground hover:text-foreground'
             }`}
-          >
-            Siguiendo
-          </button>
+          >Following</button>
           <button
             onClick={() => setActiveTab('followers')}
             className={`flex-1 sm:flex-none whitespace-nowrap px-4 py-2.5 text-sm font-bold rounded-lg transition-all flex items-center justify-center ${
               activeTab === 'followers' ? 'bg-background text-foreground shadow-sm ring-1 ring-border' : 'text-muted-foreground hover:text-foreground'
             }`}
           >
-            Seguidores
+            Followers
             {followers.length > 0 && (
               <span className="ml-1.5 bg-primary/20 text-primary text-[10px] py-0.5 px-1.5 rounded-full">{followers.length}</span>
             )}
@@ -238,9 +236,7 @@ export function Friends() {
               activeTab === 'search' ? 'bg-background text-foreground shadow-sm ring-1 ring-border' : 'text-muted-foreground hover:text-foreground'
             }`}
           >
-            <Search className="w-4 h-4 mr-2" />
-            Buscar
-          </button>
+            <Search className="w-4 h-4 mr-2" />Search</button>
         </div>
       </div>
 
@@ -253,7 +249,7 @@ export function Friends() {
               {myRank && ranking.length > 0 && (
                 <div className="flex items-center bg-primary/10 text-primary px-3 py-1.5 rounded-lg font-bold text-sm">
                   <Hash className="w-4 h-4 mr-1" />
-                  Tu Puesto: {myRank}/{ranking.length}
+                  Your Rank: {myRank}/{ranking.length}
                 </div>
               )}
             </div>
@@ -263,7 +259,7 @@ export function Friends() {
             ) : ranking.length === 0 ? (
               <div className="text-center py-12">
                 <Trophy className="w-12 h-12 text-muted-foreground mx-auto mb-4 opacity-50" />
-                <p className="text-muted-foreground font-medium">No hay suficientes datos para el ranking.</p>
+                <p className="text-muted-foreground font-medium">Not enough data for ranking.</p>
               </div>
             ) : (
               <div className="space-y-3">
@@ -323,10 +319,8 @@ export function Friends() {
             ) : following.length === 0 ? (
               <div className="text-center py-12">
                 <Users className="w-12 h-12 text-muted-foreground mx-auto mb-4 opacity-50" />
-                <p className="text-muted-foreground font-medium">Aún no sigues a nadie.</p>
-                <button onClick={() => setActiveTab('search')} className="mt-4 text-primary font-bold hover:underline">
-                  Buscar amigos
-                </button>
+                <p className="text-muted-foreground font-medium">You don't follow anyone yet.</p>
+                <button onClick={() => setActiveTab('search')} className="mt-4 text-primary font-bold hover:underline">Search friends</button>
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -346,7 +340,7 @@ export function Friends() {
                         <h4 className="font-bold text-foreground cursor-pointer hover:underline" onClick={() => openCatalog(user)}>{user.username}</h4>
                         <div className="flex items-center text-sm text-orange-500 font-bold mt-0.5">
                           <Flame className="w-3.5 h-3.5 mr-1" />
-                          {user.global_streak} racha
+                          {user.global_streak} streak
                         </div>
                       </div>
                     </div>
@@ -366,16 +360,13 @@ export function Friends() {
         {/* TAB: SEGUIDORES */}
         {activeTab === 'followers' && (
           <div className="p-6">
-            <div className="mb-6 text-sm font-bold text-muted-foreground flex items-center bg-muted/50 p-3 rounded-xl border border-border">
-              <Bell className="w-5 h-5 mr-3 text-primary" />
-              Recibe notificaciones cuando alguien comience a seguirte.
-            </div>
+            
             {isLoadingFollowers ? (
               <div className="flex justify-center py-12"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>
             ) : followers.length === 0 ? (
               <div className="text-center py-12">
                 <Users className="w-12 h-12 text-muted-foreground mx-auto mb-4 opacity-50" />
-                <p className="text-muted-foreground font-medium">Aún no tienes seguidores.</p>
+                <p className="text-muted-foreground font-medium">You don't have any followers yet.</p>
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -395,7 +386,7 @@ export function Friends() {
                         </div>
                         <div>
                           <h4 className="font-bold text-foreground cursor-pointer hover:underline" onClick={() => openCatalog(user)}>{user.username}</h4>
-                          <span className="text-xs font-medium text-muted-foreground">Comenzó a seguirte</span>
+                          <span className="text-xs font-medium text-muted-foreground">Started following you</span>
                         </div>
                       </div>
                       {!alreadyFollowing ? (
@@ -426,18 +417,18 @@ export function Friends() {
                   type="text" 
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Buscar por nombre de usuario..." 
+                  placeholder="Search by username..." 
                   className="w-full pl-12 pr-4 py-3 border bg-background border-border rounded-xl text-foreground font-medium focus:ring-2 focus:ring-primary focus:outline-none shadow-sm transition-shadow"
                 />
               </div>
               <button type="submit" disabled={isSearching || !searchQuery.trim()} className="px-6 py-3 bg-primary text-primary-foreground font-bold rounded-xl hover:opacity-90 disabled:opacity-50 transition-colors shadow-sm">
-                {isSearching ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Buscar'}
+                {isSearching ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Search'}
               </button>
             </form>
 
             <div className="space-y-3">
               {searchResults.length === 0 && searchQuery && !isSearching ? (
-                <p className="text-center text-muted-foreground py-8 font-medium">No se encontraron perfiles con ese nombre.</p>
+                <p className="text-center text-muted-foreground py-8 font-medium">No profiles found with that name.</p>
               ) : (
                 searchResults.map(user => {
                   const alreadyFollowing = isFollowing(user.id);
@@ -458,7 +449,7 @@ export function Friends() {
                         </div>
                       </div>
                       {alreadyFollowing ? (
-                        <span className="text-sm font-bold text-muted-foreground px-4 py-2 bg-muted rounded-lg border border-border">Siguiendo</span>
+                        <span className="text-sm font-bold text-muted-foreground px-4 py-2 bg-muted rounded-lg border border-border">Following</span>
                       ) : (
                         <button 
                           onClick={() => handleFollow(user.id)}
@@ -495,7 +486,7 @@ export function Friends() {
                 <div>
                   <h3 className="text-xl font-extrabold text-foreground leading-none mb-1">{selectedUser.username}</h3>
                   <div className="flex items-center space-x-2">
-                    <span className="text-sm text-muted-foreground font-medium">Catalog of juegos diarios</span>
+                    <span className="text-sm text-muted-foreground font-medium">Daily games catalog</span>
                     <span className="text-muted-foreground">•</span>
                     <span className="text-sm font-bold text-orange-500 flex items-center">
                       <Flame className="w-3.5 h-3.5 mr-1" />
@@ -515,7 +506,7 @@ export function Friends() {
               ) : userGames.length === 0 ? (
                 <div className="text-center py-12">
                   <Gamepad2 className="w-12 h-12 text-muted-foreground mx-auto mb-4 opacity-50" />
-                  <p className="text-muted-foreground font-medium">Este perfil no tiene juegos públicos.</p>
+                  <p className="text-muted-foreground font-medium">This profile has no public games.</p>
                 </div>
               ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -531,7 +522,7 @@ export function Friends() {
                             <h4 className="font-bold text-white text-lg truncate">{(game.custom_name || game.global_games?.name || "")}</h4>
                           </div>
                           
-                          <div className="flex items-center text-white/90 bg-black/20 px-2 py-1 rounded-lg text-xs font-bold backdrop-blur-sm" title="Racha en este juego">
+                          <div className="flex items-center text-white/90 bg-black/20 px-2 py-1 rounded-lg text-xs font-bold backdrop-blur-sm" title="Streak in this game">
                             <Flame className="w-3.5 h-3.5 mr-1 text-orange-300" />
                             {game.current_streak}
                           </div>
