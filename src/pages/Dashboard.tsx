@@ -176,8 +176,13 @@ export function Dashboard() {
     setNewGameUrl(urlStr);
     
     if (!newGameName.trim() && urlStr.trim()) {
+      let parseUrl = urlStr.trim();
+      if (!parseUrl.startsWith('http://') && !parseUrl.startsWith('https://')) {
+        parseUrl = 'https://' + parseUrl;
+      }
+      
       try {
-        const urlObj = new URL(urlStr);
+        const urlObj = new URL(parseUrl);
         const pathSegments = urlObj.pathname.split('/').filter(Boolean);
         let extractedName = '';
         
@@ -204,6 +209,12 @@ export function Dashboard() {
       }
     }
   };
+
+  const handleUrlBlur = () => {
+    if (newGameUrl.trim() && !newGameUrl.startsWith('http://') && !newGameUrl.startsWith('https://')) {
+      setNewGameUrl('https://' + newGameUrl.trim());
+    }
+  };
 const handleAddGame = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsAdding(true);
@@ -218,7 +229,10 @@ const handleAddGame = async (e: React.FormEvent) => {
         finalLogoUrl = await uploadLogo(logoFile);
       }
 
-      const normalizedUrl = newGameUrl.trim();
+      let normalizedUrl = newGameUrl.trim();
+      if (!normalizedUrl.startsWith("http://") && !normalizedUrl.startsWith("https://")) {
+        normalizedUrl = "https://" + normalizedUrl;
+      }
       let globalGameId;
 
       const { data: existingGlobal, } = await supabase
@@ -604,14 +618,16 @@ return (
                 <div className="space-y-1.5">
                   <label htmlFor="url" className="text-sm font-bold text-foreground">URL Link</label>
                   <input
-                    id="url"
-                    type="url"
-                    required
-                    placeholder="https://..."
-                    value={newGameUrl}
-                    onChange={handleUrlChange}
-                    className="w-full px-4 py-2.5 border bg-background border-border rounded-xl text-foreground focus:outline-none focus:ring-2 focus:ring-primary shadow-sm transition-shadow"
-                  />
+                      id="url"
+                      type="text"
+                      inputMode="url"
+                      required
+                      placeholder="e.g. minicrossword.com"
+                      value={newGameUrl}
+                      onChange={handleUrlChange}
+                      onBlur={handleUrlBlur}
+                      className="w-full px-4 py-2.5 border bg-background border-border rounded-xl text-foreground focus:outline-none focus:ring-2 focus:ring-primary shadow-sm transition-shadow"
+                    />
                 </div>
                 
                 <div className="space-y-1.5">
