@@ -568,13 +568,15 @@ return (
           </div>
         )}
 
-        {showRecommendations && (
+        {(showRecommendations || games.length === 0) && (
         <div className="bg-muted/30 p-6 rounded-3xl border border-border mt-8">
           <div className="flex justify-between items-center mb-6">
             <h3 className="text-lg font-bold text-foreground">Popular Recommendations</h3>
-            <button onClick={dismissRecommendations} className="text-muted-foreground hover:text-foreground p-2 rounded-full hover:bg-muted transition-colors" title="Hide recommendations">
-              <X className="w-5 h-5" />
-            </button>
+            {games.length > 0 && (
+              <button onClick={dismissRecommendations} className="text-muted-foreground hover:text-foreground p-2 rounded-full hover:bg-muted transition-colors" title="Hide recommendations">
+                <X className="w-5 h-5" />
+              </button>
+            )}
           </div>
           <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
             {[
