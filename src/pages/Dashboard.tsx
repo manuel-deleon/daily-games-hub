@@ -531,6 +531,9 @@ return (
                       <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); openEditModal(game); }} className="p-2 text-muted-foreground hover:text-foreground relative" title="Edit">
                         <Pencil className="w-4 h-4" />
                       </button>
+                      <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleDeleteGame(game); }} className="p-2 text-muted-foreground hover:text-destructive relative" title="Delete">
+                        <Trash2 className="w-4 h-4" />
+                      </button>
                     </div>
                     
                     <a 

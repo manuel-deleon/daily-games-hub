@@ -22,6 +22,7 @@ export function Profile() {
   
   // Password state
   const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
 
   useEffect(() => {
     async function loadProfile() {
@@ -104,8 +105,14 @@ export function Profile() {
 
   const handleUpdatePassword = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newPassword) return;
-
+    if (!newPassword || newPassword.length < 6) {
+      setPasswordMessage({ type: 'error', text: 'Password must be at least 6 characters.' });
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      setPasswordMessage({ type: 'error', text: 'Passwords do not match.' });
+      return;
+    }
     setIsSavingPassword(true);
     setPasswordMessage(null);
 
@@ -233,7 +240,7 @@ export function Profile() {
 
           {message && (
             <div className={`p-4 rounded-xl flex items-center font-bold text-sm border ${
-              message.type === 'success' ? 'bg-green-500/10 text-green-600 dark:text-green-400 border-green-500/20' : 'bg-destructive/10 text-destructive border-destructive/20'
+              message.type === 'success' ? 'bg-[#709176]/10 text-[#709176] border-[#709176]/20' : 'bg-destructive/10 text-destructive border-destructive/20'
             }`}>
               {message.type === 'success' && <CheckCircle2 className="w-5 h-5 mr-2" />}
               {message.text}
@@ -276,10 +283,27 @@ export function Profile() {
                 />
               </div>
           </div>
+            <div className="space-y-1.5 mt-5">
+              <label htmlFor="confirmPassword" className="text-sm font-bold text-foreground">
+                Confirm New Password
+              </label>
+              <div className="relative">
+                <input
+                  id="confirmPassword"
+                  type="password"
+                  required
+                  minLength={6}
+                  placeholder="Confirm your new password"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  className="appearance-none rounded-xl relative block w-full px-4 py-3 border bg-background border-border placeholder-muted-foreground text-foreground font-medium focus:outline-none focus:ring-2 focus:ring-primary shadow-sm transition-shadow"
+                />
+              </div>
+            </div>
 
           {passwordMessage && (
             <div className={`p-4 rounded-xl flex items-center font-bold text-sm border ${
-              passwordMessage.type === 'success' ? 'bg-green-500/10 text-green-600 dark:text-green-400 border-green-500/20' : 'bg-destructive/10 text-destructive border-destructive/20'
+              passwordMessage.type === 'success' ? 'bg-[#709176]/10 text-[#709176] border-[#709176]/20' : 'bg-destructive/10 text-destructive border-destructive/20'
             }`}>
               {passwordMessage.type === 'success' && <CheckCircle2 className="w-5 h-5 mr-2" />}
               {passwordMessage.text}
