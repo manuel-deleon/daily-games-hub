@@ -36,6 +36,10 @@ export function Friends() {
   
   // Ranking State
   const [ranking, setRanking] = useState<Profile[]>([]);
+  const [rankingScope, setRankingScope] = useState<'friends' | 'global'>('friends');
+  const [rankingMode, setRankingMode] = useState<'current' | 'highest'>('current');
+  const [followingIdsList, setFollowingIdsList] = useState<string[]>([]);
+
   const [myRank, setMyRank] = useState<number | null>(null);
   const [isLoadingRanking, setIsLoadingRanking] = useState(true);
 
@@ -110,20 +114,43 @@ export function Friends() {
     }
     setIsLoadingFollowers(false);
 
-    // 3. Obtener Ranking (Top 10 entre mis amigos y yo)
-    const { data: rankingData } = await supabase
-      .from('profiles')
-      .select('*, global_games(*)')
-      .in('id', followingIds)
-      .order('global_streak', { ascending: false });
-
-    if (rankingData) {
-      setRanking(rankingData);
-      const rankIndex = rankingData.findIndex(p => p.id === session.user.id);
-      if (rankIndex !== -1) setMyRank(rankIndex + 1);
-    }
-    setIsLoadingRanking(false);
+    setFollowingIdsList(followingIds);
   };
+
+  useEffect(() => {
+    const fetchRanking = async () => {
+      if (!currentUser) return;
+      setIsLoadingRanking(true);
+      
+      let query = supabase.from('profiles').select('*, global_games(*)');
+      
+      if (rankingScope === 'friends' && followingIdsList.length > 0) {
+        query = query.in('id', followingIdsList);
+      } else if (rankingScope === 'global') {
+        query = query.limit(50);
+      }
+      
+      if (rankingMode === 'highest') {
+        query = query.order('highest_streak', { ascending: false });
+      } else {
+        query = query.order('global_streak', { ascending: false });
+      }
+      
+      const { data: rankingData } = await query;
+      
+      if (rankingData) {
+        setRanking(rankingData);
+        const rankIndex = rankingData.findIndex(p => p.id === currentUser);
+        if (rankIndex !== -1) setMyRank(rankIndex + 1);
+        else setMyRank(null);
+      }
+      setIsLoadingRanking(false);
+    };
+    
+    if (followingIdsList.length > 0 || rankingScope === 'global') {
+      fetchRanking();
+    }
+  }, [rankingScope, rankingMode, followingIdsList, currentUser]);
 
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -261,15 +288,44 @@ return (
         {/* TAB: RANKING */}
         {activeTab === 'ranking' && (
           <div className="">
-            <div className="flex items-center justify-between mb-6">
-              <h3 className="text-xl font-bold">Top Global (Friends)</h3>
-              {myRank && ranking.length > 0 && (
-                <div className="flex items-center bg-primary/10 text-primary px-3 py-1.5 rounded-lg font-bold text-sm">
-                  <Hash className="w-4 h-4 mr-1" />
-                  Your Rank: {myRank}/{ranking.length}
-                </div>
-              )}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+              <div className="flex items-center space-x-2 bg-muted/50 p-1 rounded-xl w-fit">
+                <button 
+                  onClick={() => setRankingScope('friends')}
+                  className={`px-3 py-1.5 rounded-lg text-sm font-bold transition-all ${rankingScope === 'friends' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
+                >
+                  Friends
+                </button>
+                <button 
+                  onClick={() => setRankingScope('global')}
+                  className={`px-3 py-1.5 rounded-lg text-sm font-bold transition-all ${rankingScope === 'global' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
+                >
+                  Global
+                </button>
+              </div>
+
+              <div className="flex items-center space-x-2 bg-muted/50 p-1 rounded-xl w-fit">
+                <button 
+                  onClick={() => setRankingMode('current')}
+                  className={`px-3 py-1.5 rounded-lg text-sm font-bold transition-all ${rankingMode === 'current' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
+                >
+                  Current Streak
+                </button>
+                <button 
+                  onClick={() => setRankingMode('highest')}
+                  className={`px-3 py-1.5 rounded-lg text-sm font-bold transition-all ${rankingMode === 'highest' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
+                >
+                  Personal Best
+                </button>
+              </div>
             </div>
+            
+            {myRank && ranking.length > 0 && (
+              <div className="flex items-center bg-primary/10 text-primary px-3 py-1.5 rounded-lg font-bold text-sm mb-4 w-fit">
+                <Hash className="w-4 h-4 mr-1" />
+                Your Rank: {myRank}/{rankingScope === 'global' ? '50+' : ranking.length}
+              </div>
+            )}
 
             {isLoadingRanking ? (
               <div className="flex justify-center py-12"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>
