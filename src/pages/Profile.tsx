@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
-import { Loader2, Save, CheckCircle2, Flame, LogOut, Upload, KeyRound, Sun, Moon } from 'lucide-react';
+import { Loader2, Save, CheckCircle2, Flame, LogOut, Upload, KeyRound, Sun, Moon, Eye, EyeOff } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import type { Profile } from '../types';
 import { useTheme } from '../hooks/useTheme';
@@ -22,6 +22,8 @@ export function Profile() {
   
   // Password state
   const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
 
   useEffect(() => {
     async function loadProfile() {
@@ -104,8 +106,14 @@ export function Profile() {
 
   const handleUpdatePassword = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newPassword) return;
-
+    if (!newPassword || newPassword.length < 6) {
+      setPasswordMessage({ type: 'error', text: 'Password must be at least 6 characters.' });
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      setPasswordMessage({ type: 'error', text: 'Passwords do not match.' });
+      return;
+    }
     setIsSavingPassword(true);
     setPasswordMessage(null);
 
@@ -115,6 +123,7 @@ export function Profile() {
       if (error) throw error;
       
       setNewPassword('');
+      setConfirmPassword('');
       setPasswordMessage({ type: 'success', text: 'Password updated successfully.' });
       setTimeout(() => setPasswordMessage(null), 3000);
     } catch (err: any) {
@@ -150,7 +159,7 @@ export function Profile() {
       <div className="grid grid-cols-2 gap-4">
         <div className="bg-card border border-border rounded-2xl p-5 shadow-sm flex flex-col items-center sm:items-start">
           <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">Global Streak</span>
-          <div className="flex items-center text-orange-500">
+          <div className="flex items-center text-[#D4A336]">
             <Flame className="w-8 h-8 mr-1.5" />
             <span className="text-3xl font-black">{profile?.global_streak || 0}</span>
           </div>
@@ -158,7 +167,7 @@ export function Profile() {
         <div className="bg-card border border-border rounded-2xl p-5 shadow-sm flex flex-col items-center sm:items-start relative overflow-hidden">
           <div className="absolute -right-4 -top-4 w-16 h-16 bg-primary/5 rounded-full blur-xl pointer-events-none"></div>
           <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">Personal Best</span>
-          <div className="flex items-center text-primary">
+          <div className="flex items-center text-orange-500">
             <Flame className="w-8 h-8 mr-1.5" />
             <span className="text-3xl font-black">{profile?.highest_streak || profile?.global_streak || 0}</span>
           </div>
@@ -233,7 +242,7 @@ export function Profile() {
 
           {message && (
             <div className={`p-4 rounded-xl flex items-center font-bold text-sm border ${
-              message.type === 'success' ? 'bg-green-500/10 text-green-600 dark:text-green-400 border-green-500/20' : 'bg-destructive/10 text-destructive border-destructive/20'
+              message.type === 'success' ? 'bg-[#709176]/10 text-[#709176] border-[#709176]/20' : 'bg-destructive/10 text-destructive border-destructive/20'
             }`}>
               {message.type === 'success' && <CheckCircle2 className="w-5 h-5 mr-2" />}
               {message.text}
@@ -276,10 +285,30 @@ export function Profile() {
                 />
               </div>
           </div>
+            <div className="space-y-1.5 mt-5">
+              <label htmlFor="confirmPassword" className="text-sm font-bold text-foreground">
+                Confirm New Password
+              </label>
+              <div className="relative">
+                <input
+                  id="confirmPassword"
+                  type={showPassword ? "text" : "password"}
+                  required
+                  minLength={6}
+                  placeholder="Confirm your new password"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  className="appearance-none rounded-xl relative block w-full px-4 py-3 border bg-background border-border placeholder-muted-foreground text-foreground font-medium focus:outline-none focus:ring-2 focus:ring-primary shadow-sm transition-shadow pr-12"
+                />
+                <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-3.5 text-muted-foreground hover:text-foreground">
+                  {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                </button>
+              </div>
+            </div>
 
           {passwordMessage && (
             <div className={`p-4 rounded-xl flex items-center font-bold text-sm border ${
-              passwordMessage.type === 'success' ? 'bg-green-500/10 text-green-600 dark:text-green-400 border-green-500/20' : 'bg-destructive/10 text-destructive border-destructive/20'
+              passwordMessage.type === 'success' ? 'bg-[#709176]/10 text-[#709176] border-[#709176]/20' : 'bg-destructive/10 text-destructive border-destructive/20'
             }`}>
               {passwordMessage.type === 'success' && <CheckCircle2 className="w-5 h-5 mr-2" />}
               {passwordMessage.text}
