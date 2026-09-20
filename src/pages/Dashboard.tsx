@@ -384,22 +384,19 @@ return (
 
   return (
     <div className="space-y-8">
-      {/* Hero Header */}
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center pb-8 border-b border-border gap-6">
+      {/* Seamless Minimalist Hero */}
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-6 mb-2">
           <div className="flex-1 space-y-3">
-            <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-foreground">
-              {completedGamesCount === totalGames && totalGames > 0 ? "You're all set!" : "Daily Games"}
-            </h1>
-            <p className="text-muted-foreground font-medium text-lg">
+            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-foreground">
               {totalGames === 0 
                 ? 'Start by adding your first game.'
                 : remainingGames === 0 
                   ? 'You have completed all your games today!' 
                   : `You have ${remainingGames} game${remainingGames === 1 ? "" : "s"} left to complete today.`}
-            </p>
+            </h1>
             
             {/* Weekly Progress Bar */}
-            <div className="flex items-center space-x-2 mt-4">
+            <div className="flex items-center space-x-2 mt-2">
               {[0, 1, 2, 3, 4, 5, 6].map((dayIndex) => {
                 const offset = todayIndex - dayIndex;
                 const isFuture = offset < 0;
@@ -421,32 +418,15 @@ return (
               })}
             </div>
           </div>
-  
-          <div className="flex items-center space-x-4 bg-muted/30 py-3 px-5 rounded-2xl border border-border">
-            <div className="flex flex-col">
-              <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Global Streak</span>
-              <div className="flex items-center text-orange-500">
-                <Flame className="w-6 h-6 mr-1" />
-                <span className="text-3xl font-black text-foreground">{profile?.global_streak || 0}</span>
-              </div>
-            </div>
-          </div>
+          
+          <button
+            onClick={openAddModal}
+            className="flex items-center justify-center py-2.5 px-5 text-sm font-bold rounded-xl text-primary-foreground bg-primary hover:opacity-90 transition-colors shadow-sm whitespace-nowrap w-full sm:w-auto"
+          >
+            <Plus className="w-4 h-4 mr-1.5" />
+            Add Game
+          </button>
         </div>
-
-        {/* Catalog Header */}
-      <div className="flex justify-between items-end flex-wrap gap-4 mt-8 mb-4">
-        <div>
-          <h2 className="text-2xl font-bold tracking-tight text-foreground">Your Catalog</h2>
-        </div>
-        
-        <button
-          onClick={openAddModal}
-          className="flex items-center justify-center py-2 px-4 text-sm font-bold rounded-lg text-primary-foreground bg-primary hover:opacity-90 transition-colors shadow-sm"
-        >
-          <Plus className="w-4 h-4 mr-1.5" />
-          Add Game
-        </button>
-      </div>
 
       {games.length === 0 ? (
         <div className="text-center py-12 bg-card rounded-2xl border border-border shadow-sm mb-8">

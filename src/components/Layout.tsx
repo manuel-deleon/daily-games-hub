@@ -117,9 +117,9 @@ export function Layout() {
 
             {/* Right side: User stats & Actions */}
             <div className="flex items-center space-x-4">
-              {/* Global Streak (Visible on Desktop) */}
+              {/* Global Streak */}
               {profile && (
-                <div className="hidden sm:flex items-center text-orange-500 font-bold bg-orange-500/10 px-3 py-1.5 rounded-full" title={"Global Streak"}>
+                <div className="flex items-center font-bold px-2 py-1.5 rounded-full" style={{ color: '#D4A336' }} title={"Global Streak"}>
                   <Flame className="w-5 h-5 mr-1.5" />
                   <span>{profile.global_streak}</span>
                 </div>
