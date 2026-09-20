@@ -169,7 +169,42 @@ export function Dashboard() {
     setIsMarking(null);
   };
 
-  const handleAddGame = async (e: React.FormEvent) => {
+  
+  // Auto-extract name from URL
+  const handleUrlChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const urlStr = e.target.value;
+    setNewGameUrl(urlStr);
+    
+    if (!newGameName.trim() && urlStr.trim()) {
+      try {
+        const urlObj = new URL(urlStr);
+        const pathSegments = urlObj.pathname.split('/').filter(Boolean);
+        let extractedName = '';
+        
+        if (pathSegments.length > 0) {
+           const lastSegment = pathSegments[pathSegments.length - 1];
+           if (!lastSegment.includes('.')) {
+              extractedName = lastSegment;
+           } else if (pathSegments.length > 1) {
+              extractedName = pathSegments[pathSegments.length - 2];
+           }
+        }
+        
+        if (!extractedName) {
+           const domainParts = urlObj.hostname.replace(/^www\./, '').split('.');
+           extractedName = domainParts[0];
+        }
+
+        if (extractedName) {
+          const capitalized = extractedName.charAt(0).toUpperCase() + extractedName.slice(1).replace(/-/g, ' ').toLowerCase();
+          setNewGameName(capitalized);
+        }
+      } catch {
+        // Invalid URL yet
+      }
+    }
+  };
+const handleAddGame = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsAdding(true);
     setAddError(null);
@@ -567,6 +602,19 @@ return (
             <form onSubmit={editingGame ? handleUpdateGame : handleAddGame} className="p-6 space-y-5">
               <div className="space-y-4">
                 <div className="space-y-1.5">
+                  <label htmlFor="url" className="text-sm font-bold text-foreground">URL Link</label>
+                  <input
+                    id="url"
+                    type="url"
+                    required
+                    placeholder="https://..."
+                    value={newGameUrl}
+                    onChange={handleUrlChange}
+                    className="w-full px-4 py-2.5 border bg-background border-border rounded-xl text-foreground focus:outline-none focus:ring-2 focus:ring-primary shadow-sm transition-shadow"
+                  />
+                </div>
+                
+                <div className="space-y-1.5">
                   <label htmlFor="name" className="text-sm font-bold text-foreground">Game Name</label>
                   <input
                     id="name"
@@ -575,19 +623,6 @@ return (
                     placeholder="e.g. Wordle, Framed..."
                     value={newGameName}
                     onChange={(e) => setNewGameName(e.target.value)}
-                    className="w-full px-4 py-2.5 border bg-background border-border rounded-xl text-foreground focus:outline-none focus:ring-2 focus:ring-primary shadow-sm transition-shadow"
-                  />
-                </div>
-                
-                <div className="space-y-1.5">
-                  <label htmlFor="url" className="text-sm font-bold text-foreground">URL Link</label>
-                  <input
-                    id="url"
-                    type="url"
-                    required
-                    placeholder="https://..."
-                    value={newGameUrl}
-                    onChange={(e) => setNewGameUrl(e.target.value)}
                     className="w-full px-4 py-2.5 border bg-background border-border rounded-xl text-foreground focus:outline-none focus:ring-2 focus:ring-primary shadow-sm transition-shadow"
                   />
                 </div>
