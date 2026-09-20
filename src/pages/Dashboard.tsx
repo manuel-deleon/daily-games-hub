@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
-import { Flame, CheckCircle2, Circle, Plus, X, Loader2, Pencil, Trash2, Gamepad2, Upload } from 'lucide-react';
+import { Flame, Play, CheckCircle2, Circle, Plus, X, Loader2, Pencil, Trash2, Gamepad2, Upload } from 'lucide-react';
 import type { Game, Profile } from '../types';
 
 export function Dashboard() {
@@ -153,17 +153,38 @@ export function Dashboard() {
     loadData();
   }, []);
 
-  const handleMarkCompleted = async (gameId: string) => {
+  const handleMarkCompleted = async (e: React.MouseEvent, gameId: string) => {
+    e.preventDefault();
+    e.stopPropagation();
     setIsMarking(gameId);
     
-    const { error } = await supabase.rpc('mark_game_completed', {
-      p_game_id: gameId
-    });
-
-    if (!error) {
-      await loadData();
+    const isCompleted = completedTodayIds.has(gameId);
+    
+    if (isCompleted) {
+      const today = new Date().toISOString().split('T')[0];
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        const { error } = await supabase
+          .from('daily_progress')
+          .delete()
+          .eq('user_id', session.user.id)
+          .eq('game_id', gameId)
+          .eq('completed_date', today);
+          
+        if (!error) {
+          await loadData();
+        }
+      }
     } else {
-      console.error("Error marcando completado:", error);
+      const { error } = await supabase.rpc('mark_game_completed', {
+        p_game_id: gameId
+      });
+  
+      if (!error) {
+        await loadData();
+      } else {
+        console.error("Error marcando completado:", error);
+      }
     }
     
     setIsMarking(null);
@@ -445,24 +466,30 @@ return (
               const isCompleted = completedTodayIds.has(game.id);
   
               return (
-                <a 
+                <div 
                   key={game.id}
-                  href={game.global_games?.url || ""}
-                  target="_blank"
-                  rel="noopener noreferrer"
                   className="group relative flex flex-row sm:flex-col items-center sm:items-start justify-between p-4 sm:p-5 rounded-xl sm:rounded-2xl border border-border bg-card hover:bg-muted/30 transition-all sm:hover:border-primary/50 gap-4"
                 >
+                  {/* Invisible Link covering the whole card for Play */}
+                  <a 
+                    href={game.global_games?.url || ""}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="absolute inset-0 z-0 rounded-xl sm:rounded-2xl"
+                    aria-label={`Play ${game.custom_name || game.global_games?.name}`}
+                  ></a>
+
                   {/* Absolute Edit/Delete Menu (Desktop hover) */}
                   <div className="hidden sm:flex absolute top-3 right-3 items-center space-x-1 opacity-0 group-hover:opacity-100 transition-opacity z-20">
-                    <button onClick={(e) => { e.preventDefault(); openEditModal(game); }} className="p-1.5 text-muted-foreground hover:text-foreground transition-colors rounded-md hover:bg-background shadow-sm border border-border bg-card" title="Edit">
+                    <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); openEditModal(game); }} className="p-1.5 text-muted-foreground hover:text-foreground transition-colors rounded-md hover:bg-background shadow-sm border border-border bg-card relative" title="Edit">
                       <Pencil className="w-3.5 h-3.5" />
                     </button>
-                    <button onClick={(e) => { e.preventDefault(); handleDeleteGame(game); }} className="p-1.5 text-muted-foreground hover:text-destructive transition-colors rounded-md hover:bg-destructive/10 shadow-sm border border-border bg-card" title="Delete">
+                    <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleDeleteGame(game); }} className="p-1.5 text-muted-foreground hover:text-destructive transition-colors rounded-md hover:bg-destructive/10 shadow-sm border border-border bg-card relative" title="Delete">
                       <Trash2 className="w-3.5 h-3.5" />
                     </button>
                   </div>
 
-                  <div className="flex items-center space-x-4 min-w-0 flex-1 w-full">
+                  <div className="flex items-center space-x-4 min-w-0 flex-1 w-full z-10 pointer-events-none">
                     {getGameLogo(game) ? (
                       <img src={getGameLogo(game)} alt={(game.custom_name || game.global_games?.name || "")} className="w-12 h-12 sm:w-14 sm:h-14 rounded-xl object-cover shadow-sm border border-border flex-shrink-0" />
                     ) : (
@@ -477,15 +504,15 @@ return (
                       </h3>
                       
                       <div className="flex items-center space-x-3 mt-0.5 sm:mt-1">
-                        {/* Relaxed Orange Streak */}
+                        {/* Relaxed custom color Streak */}
                         {game.current_streak > 0 && (
-                          <div className="flex items-center text-orange-400 text-sm font-bold">
+                          <div className="flex items-center font-bold text-sm" style={{ color: '#D4A336' }}>
                             <Flame className="w-3.5 h-3.5 mr-1" />
                             {game.current_streak}
                           </div>
                         )}
                         
-                        {/* Status inline (always visible on desktop, maybe hidden on mobile if we want) */}
+                        {/* Status inline */}
                         <div className="hidden sm:flex items-center text-sm font-semibold">
                           {isCompleted ? (
                             <span className="text-foreground/60 flex items-center"><CheckCircle2 className="w-3.5 h-3.5 mr-1" /> Done</span>
@@ -497,35 +524,47 @@ return (
                     </div>
                   </div>
                   
-                  {/* Mark Done button and Mobile Actions */}
-                  <div className="flex items-center justify-end space-x-2 w-auto sm:w-full sm:mt-2">
+                  {/* Buttons wrapper (z-10 so they are clickable above the absolute link) */}
+                  <div className="flex items-center justify-end space-x-2 w-auto sm:w-full sm:mt-2 z-10 relative">
                     
-                    {/* Mobile Edit/Delete (since absolute positioning is bad on mobile) */}
+                    {/* Mobile Edit/Delete */}
                     <div className="flex sm:hidden items-center space-x-1 mr-1">
-                      <button onClick={(e) => { e.preventDefault(); openEditModal(game); }} className="p-2 text-muted-foreground hover:text-foreground" title="Edit">
+                      <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); openEditModal(game); }} className="p-2 text-muted-foreground hover:text-foreground relative" title="Edit">
                         <Pencil className="w-4 h-4" />
                       </button>
                     </div>
+                    
+                    <a 
+                      href={game.global_games?.url || ""}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="hidden sm:flex flex-1 items-center justify-center py-2.5 px-4 bg-background hover:bg-muted border border-border text-foreground font-bold rounded-xl transition-colors text-sm shadow-sm relative"
+                    >
+                      <Play className="w-4 h-4 mr-2" />
+                      Play
+                    </a>
 
-                    {!isCompleted && (
-                      <button
-                        onClick={(e) => { e.preventDefault(); handleMarkCompleted(game.id); }}
-                        disabled={isMarking === game.id}
-                        className="relative z-10 flex items-center justify-center py-2 px-3 sm:py-2.5 sm:px-4 sm:w-full bg-primary text-primary-foreground font-bold rounded-lg sm:rounded-xl transition-colors hover:opacity-90 disabled:opacity-50 text-sm whitespace-nowrap shadow-sm"
-                      >
-                        {isMarking === game.id ? <Loader2 className="w-4 h-4 sm:mr-2 animate-spin" /> : <CheckCircle2 className="w-4 h-4 sm:mr-2" />}
-                        <span className="hidden sm:inline">Mark Done</span>
-                        <span className="sm:hidden ml-1.5">Done</span>
-                      </button>
-                    )}
-                    {isCompleted && (
-                       // On mobile, show a small visual 'Done' check if the button goes away
-                       <div className="sm:hidden flex items-center text-foreground/60 font-bold text-sm px-2">
-                         <CheckCircle2 className="w-5 h-5" />
-                       </div>
-                    )}
+                    <button
+                      onClick={(e) => handleMarkCompleted(e, game.id)}
+                      disabled={isMarking === game.id}
+                      className={`relative flex items-center justify-center py-2 px-3 sm:py-2.5 sm:px-4 sm:flex-1 font-bold rounded-lg sm:rounded-xl transition-colors disabled:opacity-50 text-sm whitespace-nowrap shadow-sm ${
+                        isCompleted 
+                          ? 'bg-muted text-muted-foreground hover:bg-muted/70 border border-border' 
+                          : 'bg-primary text-primary-foreground hover:opacity-90'
+                      }`}
+                    >
+                      {isMarking === game.id ? (
+                         <Loader2 className="w-4 h-4 sm:mr-2 animate-spin" />
+                      ) : isCompleted ? (
+                         <CheckCircle2 className="w-4 h-4 sm:mr-2" />
+                      ) : (
+                         <CheckCircle2 className="w-4 h-4 sm:mr-2" />
+                      )}
+                      <span className="hidden sm:inline">{isCompleted ? 'Undo' : 'Mark Done'}</span>
+                      <span className="sm:hidden ml-1.5">{isCompleted ? 'Undo' : 'Done'}</span>
+                    </button>
                   </div>
-                </a>
+                </div>
               );
             })}
           </div>
