@@ -245,15 +245,25 @@ const handleAddGame = async (e: React.FormEvent) => {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) throw new Error('No session');
 
-      let finalLogoUrl = null;
-      if (logoFile) {
-        finalLogoUrl = await uploadLogo(logoFile);
+      let rawUrl = newGameUrl.trim();
+      if (!rawUrl.startsWith("http://") && !rawUrl.startsWith("https://")) {
+        rawUrl = "https://" + rawUrl;
       }
-
-      let normalizedUrl = newGameUrl.trim();
-      if (!normalizedUrl.startsWith("http://") && !normalizedUrl.startsWith("https://")) {
-        normalizedUrl = "https://" + normalizedUrl;
+      
+      let normalizedUrl = rawUrl;
+      try {
+        const parsed = new URL(rawUrl);
+        normalizedUrl = parsed.href;
+        if (normalizedUrl.endsWith('/')) {
+            normalizedUrl = normalizedUrl.slice(0, -1);
+        }
+      } catch (err) {
+        // fallback if invalid URL
+        if (normalizedUrl.endsWith('/')) {
+            normalizedUrl = normalizedUrl.slice(0, -1);
+        }
       }
+      
       let globalGameId;
 
       const { data: existingGlobal, } = await supabase
@@ -265,13 +275,21 @@ const handleAddGame = async (e: React.FormEvent) => {
       if (existingGlobal) {
         globalGameId = existingGlobal.id;
       } else {
+        // Extract domain for favicon
+        let domain = "";
+        try {
+            domain = new URL(normalizedUrl).hostname;
+        } catch(e) {}
+        
+        const generatedFavicon = domain ? `https://www.google.com/s2/favicons?domain=${domain}&sz=128` : null;
+
         const { data: newGlobal, error: newGlobalError } = await supabase
           .from('global_games')
           .insert({
             url: normalizedUrl,
-            name: newGameName.trim(),
-            color: newGameColor,
-            logo_url: finalLogoUrl
+            name: newGameName.trim() || 'New Game',
+            color: '#333333',
+            logo_url: generatedFavicon
           })
           .select()
           .single();
@@ -282,9 +300,9 @@ const handleAddGame = async (e: React.FormEvent) => {
       const { error } = await supabase.from('user_games').insert({
         user_id: session.user.id,
         global_game_id: globalGameId,
-        custom_name: existingGlobal && existingGlobal.name !== newGameName.trim() ? newGameName.trim() : null,
-        custom_color: existingGlobal && existingGlobal.color !== newGameColor ? newGameColor : null,
-        custom_logo_url: finalLogoUrl
+        custom_name: null,
+        custom_color: null,
+        custom_logo_url: null
       });
 
       if (error) throw error;
