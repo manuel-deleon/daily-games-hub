@@ -657,7 +657,8 @@ return (
                     />
                 </div>
                 
-                <div className="space-y-1.5">
+                {editingGame && (
+                  <div className="space-y-1.5">
                   <label htmlFor="name" className="text-sm font-bold text-foreground">Game Name</label>
                   <input
                     id="name"
@@ -669,8 +670,10 @@ return (
                     className="w-full px-4 py-2.5 border bg-background border-border rounded-xl text-foreground focus:outline-none focus:ring-2 focus:ring-primary shadow-sm transition-shadow"
                   />
                 </div>
+                  )}
 
-                <div className="space-y-1.5">
+                {editingGame && (
+                  <div className="space-y-1.5">
                   <label htmlFor="logo" className="text-sm font-bold text-foreground">Game Logo (Optional)</label>
                   <div className="flex items-center justify-center w-full">
                     <label htmlFor="logo" className="flex flex-col items-center justify-center w-full h-24 border-2 border-dashed border-border rounded-xl cursor-pointer bg-background hover:bg-muted/50 transition-colors">
@@ -688,8 +691,8 @@ return (
                     </label>
                   </div>
                 </div>
-
-                <div className="space-y-1.5">
+                  )}
+                  <div className="space-y-1.5">
                   <label htmlFor="color" className="text-sm font-bold text-foreground">Decorative Color</label>
                   <div className="flex items-center space-x-3">
                     <div className="relative overflow-hidden rounded-xl shadow-sm border border-border w-16 h-10">
