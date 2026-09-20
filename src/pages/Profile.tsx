@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
-import { Loader2, Save, CheckCircle2, Flame, LogOut, Upload, KeyRound, Sun, Moon } from 'lucide-react';
+import { Loader2, Save, CheckCircle2, Flame, LogOut, Upload, KeyRound, Sun, Moon, Eye, EyeOff } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import type { Profile } from '../types';
 import { useTheme } from '../hooks/useTheme';
@@ -23,6 +23,7 @@ export function Profile() {
   // Password state
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
 
   useEffect(() => {
     async function loadProfile() {
@@ -122,6 +123,7 @@ export function Profile() {
       if (error) throw error;
       
       setNewPassword('');
+      setConfirmPassword('');
       setPasswordMessage({ type: 'success', text: 'Password updated successfully.' });
       setTimeout(() => setPasswordMessage(null), 3000);
     } catch (err: any) {
@@ -290,14 +292,17 @@ export function Profile() {
               <div className="relative">
                 <input
                   id="confirmPassword"
-                  type="password"
+                  type={showPassword ? "text" : "password"}
                   required
                   minLength={6}
                   placeholder="Confirm your new password"
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
-                  className="appearance-none rounded-xl relative block w-full px-4 py-3 border bg-background border-border placeholder-muted-foreground text-foreground font-medium focus:outline-none focus:ring-2 focus:ring-primary shadow-sm transition-shadow"
+                  className="appearance-none rounded-xl relative block w-full px-4 py-3 border bg-background border-border placeholder-muted-foreground text-foreground font-medium focus:outline-none focus:ring-2 focus:ring-primary shadow-sm transition-shadow pr-12"
                 />
+                <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-3.5 text-muted-foreground hover:text-foreground">
+                  {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                </button>
               </div>
             </div>
 
