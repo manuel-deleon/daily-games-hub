@@ -78,7 +78,7 @@ export function Layout() {
                 className={`font-semibold flex items-center space-x-2 transition-colors ${isActive('/suggestions') ? 'text-primary' : 'text-muted-foreground hover:text-foreground'}`}
               >
                 <Lightbulb className="w-4 h-4" />
-                <span>{'Suggestions'}</span>
+                <span>{'Feedback'}</span>
               </Link>
               <Link 
                 to="/updates" 
@@ -150,7 +150,7 @@ export function Layout() {
             className={`flex flex-col items-center justify-center w-full h-full space-y-1 ${isActive('/suggestions') ? 'text-primary' : 'text-muted-foreground hover:text-foreground'}`}
           >
             <Lightbulb className="w-5 h-5" />
-            <span className="text-[10px] font-semibold">{'Ideas'}</span>
+            <span className="text-[10px] font-semibold">{'Feedback'}</span>
           </Link>
           <Link 
             to="/updates" 
