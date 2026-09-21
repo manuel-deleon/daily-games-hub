@@ -132,9 +132,20 @@ export function Dashboard() {
   };
 
   const handleTogglePin = async (game: any) => {
-    const { error } = await supabase.from('user_games').update({ is_pinned: !game.is_pinned }).eq('id', game.id);
-    if (!error) {
-      await loadData();
+    // Optimistic UI update
+    const newPinnedStatus = !game.is_pinned;
+    setGames(prev => {
+      const updated = prev.map(g => g.id === game.id ? { ...g, is_pinned: newPinnedStatus } : g);
+      return updated.sort((a: any, b: any) => {
+        if (a.is_pinned && !b.is_pinned) return -1;
+        if (!a.is_pinned && b.is_pinned) return 1;
+        return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+      });
+    });
+
+    const { error } = await supabase.from('user_games').update({ is_pinned: newPinnedStatus }).eq('id', game.id);
+    if (error) {
+      await loadData(); // Revert on error
     }
   };
 
@@ -528,7 +539,7 @@ return (
 
                   {/* Absolute Edit/Delete Menu (Desktop hover) */}
                     <div className={`flex absolute top-3 right-3 items-center space-x-1 transition-opacity z-20 ${game.is_pinned ? 'opacity-100' : 'sm:opacity-0 group-hover:opacity-100'}`}>
-                      <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleTogglePin(game); }} className={`p-1.5 transition-colors rounded-md hover:bg-background shadow-sm border border-border bg-card relative ${game.is_pinned ? 'text-primary' : 'text-muted-foreground hover:text-foreground'}`} title={game.is_pinned ? 'Unpin' : 'Pin'}>
+                      <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleTogglePin(game); }} className={`p-1.5 transition-all rounded-md hover:bg-background active:scale-90 shadow-sm border border-border bg-card relative ${game.is_pinned ? 'text-primary bg-primary/5 border-primary/20' : 'text-muted-foreground hover:text-foreground'}`} title={game.is_pinned ? 'Unpin' : 'Pin'}>
                         <Pin className="w-3.5 h-3.5" />
                       </button>
                       <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); openEditModal(game); }} className="p-1.5 text-muted-foreground hover:text-foreground transition-colors rounded-md hover:bg-background shadow-sm border border-border bg-card relative" title="Edit">
