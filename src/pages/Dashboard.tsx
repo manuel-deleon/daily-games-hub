@@ -4,6 +4,13 @@ import { Flame, Play, CheckCircle2, Circle, Plus, X, Loader2, Pencil, Trash2, Ga
 import type { Game } from '../types';
 
 export function Dashboard() {
+  // Helper for consistent local date string
+  const getLocalDateStr = (d: Date) => {
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+  };
   // Helper to get logo or favicon
   const getGameLogo = (game: any) => {
     const url = game.custom_logo_url || game.global_games?.logo_url;
@@ -93,6 +100,7 @@ export function Dashboard() {
 
       setEditingGame(null);
       await loadData();
+        window.dispatchEvent(new Event('profileUpdated'));
     } catch (err: any) {
       setAddError(err.message || 'Error updating game.');
     } finally {
@@ -108,6 +116,7 @@ export function Dashboard() {
     const { error } = await supabase.from('user_games').delete().eq('id', game.id);
     if (!error) {
       await loadData();
+        window.dispatchEvent(new Event('profileUpdated'));
     }
   };
 
@@ -130,7 +139,7 @@ export function Dashboard() {
     }
 
     // Fetch Progress
-    const today = new Date().toISOString().split('T')[0];
+    const today = getLocalDateStr(new Date());
     const { data: progressData, error: progressError } = await supabase
       .from('daily_progress')
       .select('game_id')
@@ -146,7 +155,7 @@ export function Dashboard() {
     // Fetch Weekly Progress
     const weekAgo = new Date();
     weekAgo.setDate(weekAgo.getDate() - 7);
-    const weekAgoStr = weekAgo.toISOString().split('T')[0];
+    const weekAgoStr = getLocalDateStr(weekAgo);
 
     const { data: weekData } = await supabase
       .from('daily_progress')
@@ -189,6 +198,7 @@ export function Dashboard() {
       });
       if (!error) {
         await loadData();
+        window.dispatchEvent(new Event('profileUpdated'));
       } else {
         console.error("Error undoing:", error);
       }
@@ -199,6 +209,7 @@ export function Dashboard() {
   
       if (!error) {
         await loadData();
+        window.dispatchEvent(new Event('profileUpdated'));
       } else {
         console.error("Error marcando completado:", error);
       }
@@ -327,6 +338,7 @@ const handleAddGame = async (e: React.FormEvent) => {
       setNewGameColor('#709176');
       setLogoFile(null);
       await loadData();
+        window.dispatchEvent(new Event('profileUpdated'));
       setIsAddModalOpen(false);
     } catch (err: any) {
       setAddError(err.message || 'Error adding game.');
@@ -376,7 +388,7 @@ return (
   const getDayStatus = (offsetFromToday: number) => {
     const d = new Date();
     d.setDate(d.getDate() - offsetFromToday);
-    const dStr = d.toISOString().split('T')[0];
+    const dStr = getLocalDateStr(d);
     const completedCount = weeklyProgress[dStr] || 0;
     
     // Si es hoy, exigimos que complete todos. Si es en el pasado, con que haya completado al menos 1 lo mostramos verde
@@ -600,6 +612,7 @@ return (
                           await supabase.from('user_games').insert({ user_id: session.user.id, global_game_id: gId });
 
                           await loadData();
+        window.dispatchEvent(new Event('profileUpdated'));
                         }
                       } finally {
                         setAddingRec(null);

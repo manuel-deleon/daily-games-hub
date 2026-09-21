@@ -15,7 +15,7 @@ export function Layout() {
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   
   useEffect(() => {
-    async function loadProfile() {
+    const loadProfile = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
         navigate('/login');
@@ -35,6 +35,17 @@ export function Layout() {
 
     loadProfile();
   }, [navigate]);
+
+  useEffect(() => {
+    const handleProfileUpdated = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
+      const { data, error } = await supabase.from('profiles').select('*').eq('id', session.user.id).single();
+      if (!error && data) setProfile(data);
+    };
+    window.addEventListener('profileUpdated', handleProfileUpdated);
+    return () => window.removeEventListener('profileUpdated', handleProfileUpdated);
+  }, []);
 
   useEffect(() => {
     if (!profile) return;

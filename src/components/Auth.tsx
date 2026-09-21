@@ -147,7 +147,7 @@ export function Auth() {
                   autoComplete="email"
                   required
                   className="block w-full pl-10 pr-3 py-2.5 border bg-background border-border rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all sm:text-sm"
-                  placeholder="ejemplo@correo.com"
+                  placeholder="example@email.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                 />
@@ -212,7 +212,7 @@ export function Auth() {
               {isLoading ? (
                 <Loader2 className="w-5 h-5 animate-spin" />
               ) : isResettingPassword ? (
-                'Enviar correo de recuperación'
+                'Send recovery email'
               ) : isLogin ? (
                 'Sign In'
               ) : (
@@ -229,7 +229,7 @@ export function Auth() {
                 <div className="w-full border-t border-border" />
               </div>
               <div className="relative flex justify-center text-sm">
-                <span className="px-3 bg-card text-muted-foreground font-medium">O continúa con</span>
+                <span className="px-3 bg-card text-muted-foreground font-medium">Or continue with</span>
               </div>
             </div>
 
@@ -282,7 +282,7 @@ export function Auth() {
                 onClick={() => setIsLogin(!isLogin)}
                 className="font-bold text-primary hover:opacity-80 transition-colors ml-1"
               >
-                {isLogin ? "Sign up ahora" : "Sign in"}
+                {isLogin ? "Sign up" : "Sign in"}
               </button>
             </p>
           )}
