@@ -79,6 +79,11 @@ export function Admin() {
       const { data: { publicUrl } } = supabase.storage
         .from('game-logos')
         .getPublicUrl(filePath);
+        
+      if (editingGame.logo_url && editingGame.logo_url.includes('/storage/v1/object/public/game-logos/')) {
+        const oldPath = editingGame.logo_url.split('/game-logos/')[1];
+        if (oldPath) supabase.storage.from('game-logos').remove([oldPath]).catch(e => console.error(e));
+      }
 
       setEditingGame({ ...editingGame, logo_url: publicUrl });
     } catch (error) {
@@ -97,9 +102,19 @@ export function Admin() {
     else { setEditingGame(null); loadAdminData(); }
   };
 
-  const handleDeleteGame = async (id: string) => {
+
+  const toggleRecommended = async (gameId: string, currentVal: boolean) => {
+    await supabase.from('global_games').update({ is_recommended: !currentVal }).eq('id', gameId);
+    loadAdminData();
+  };
+
+  const handleDeleteGame = async (game: any) => {
     if (confirm('Are you sure you want to permanently delete this global game? All users will lose it.')) {
-      const { error } = await supabase.from('global_games').delete().eq('id', id);
+      if (game.logo_url && game.logo_url.includes('/storage/v1/object/public/game-logos/')) {
+        const oldPath = game.logo_url.split('/game-logos/')[1];
+        if (oldPath) supabase.storage.from('game-logos').remove([oldPath]).catch(e => console.error(e));
+      }
+      const { error } = await supabase.from('global_games').delete().eq('id', game.id);
       if (error) alert("Error deleting game: " + error.message);
       else loadAdminData();
     }
@@ -114,9 +129,13 @@ export function Admin() {
     else { setEditingUser(null); loadAdminData(); }
   };
 
-  const handleDeleteUser = async (id: string) => {
+  const handleDeleteUser = async (user: any) => {
     if (confirm('WARNING: Are you sure you want to completely ban and delete this user?')) {
-      const { error } = await supabase.from('profiles').delete().eq('id', id);
+      if (user.avatar_url && user.avatar_url.includes('/storage/v1/object/public/avatars/')) {
+        const oldPath = user.avatar_url.split('/avatars/')[1];
+        if (oldPath) supabase.storage.from('avatars').remove([oldPath]).catch(e => console.error(e));
+      }
+      const { error } = await supabase.from('profiles').delete().eq('id', user.id);
       if (error) alert("Error deleting user: " + error.message);
       else loadAdminData();
     }
@@ -193,10 +212,18 @@ export function Admin() {
                   <tr key={game.id} className="hover:bg-muted/30 transition-colors">
                     <td className="p-4"><img src={game.logo_url || 'https://via.placeholder.com/40'} alt="logo" className="w-10 h-10 rounded-lg object-cover" /></td>
                     <td className="p-4 font-bold">{game.name}</td>
-                    <td className="p-4 text-sm text-muted-foreground truncate max-w-[200px]">{game.url}</td>
-                    <td className="p-4 text-right space-x-2">
+                      <td className="p-4 text-sm text-muted-foreground truncate max-w-[200px]">{game.url}</td>
+                      <td className="p-4 text-center">
+                        <input 
+                          type="checkbox" 
+                          checked={game.is_recommended || false} 
+                          onChange={() => toggleRecommended(game.id, game.is_recommended)}
+                          className="w-5 h-5 accent-primary cursor-pointer"
+                        />
+                      </td>
+                      <td className="p-4 text-right space-x-2">
                       <button onClick={() => setEditingGame(game)} className="p-2 bg-background border border-border rounded-lg hover:bg-muted"><Edit className="w-4 h-4" /></button>
-                      <button onClick={() => handleDeleteGame(game.id)} className="p-2 bg-destructive/10 text-destructive border border-destructive/20 rounded-lg hover:bg-destructive hover:text-white"><Trash2 className="w-4 h-4" /></button>
+                      <button onClick={() => handleDeleteGame(game)} className="p-2 bg-destructive/10 text-destructive border border-destructive/20 rounded-lg hover:bg-destructive hover:text-white"><Trash2 className="w-4 h-4" /></button>
                     </td>
                   </tr>
                 ))}
@@ -236,7 +263,7 @@ export function Admin() {
                     <td className="p-4 font-bold">{user.global_streak} / {user.highest_streak}</td>
                     <td className="p-4 text-right space-x-2">
                       <button onClick={() => setEditingUser(user)} className="p-2 bg-background border border-border rounded-lg hover:bg-muted"><Edit className="w-4 h-4" /></button>
-                      <button onClick={() => handleDeleteUser(user.id)} disabled={user.is_admin} className="p-2 bg-destructive/10 text-destructive border border-destructive/20 rounded-lg hover:bg-destructive hover:text-white disabled:opacity-50"><Trash2 className="w-4 h-4" /></button>
+                      <button onClick={() => handleDeleteUser(user)} disabled={user.is_admin} className="p-2 bg-destructive/10 text-destructive border border-destructive/20 rounded-lg hover:bg-destructive hover:text-white disabled:opacity-50"><Trash2 className="w-4 h-4" /></button>
                     </td>
                   </tr>
                 ))}

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
-import { Search, UserPlus, Users, Flame, Copy, Loader2, CheckCircle2, X, Trophy, Hash, Gamepad2 } from 'lucide-react';
+import { Search, UserPlus, Users, Flame, Copy, Loader2, CheckCircle2, X, Trophy, Hash, Gamepad2 , Circle } from 'lucide-react';
 import type { Profile, Game } from '../types';
 
 interface FollowProfile extends Profile {
@@ -54,6 +54,22 @@ export function Friends() {
   const [myGameUrls, setMyGameUrls] = useState<Set<string>>(new Set());
   const [isLoadingCatalog, setIsLoadingCatalog] = useState(false);
   const [copyingId, setCopyingId] = useState<string | null>(null);
+  const [selectedHistoryGame, setSelectedHistoryGame] = useState<Game | null>(null);
+  const [historyProgress, setHistoryProgress] = useState<{ completed_date: string, share_text: string | null }[]>([]);
+
+  const openHistory = async (game: Game) => {
+    setSelectedHistoryGame(game);
+    if (!selectedUser) return;
+    const { data } = await supabase
+      .from('daily_progress')
+      .select('completed_date, share_text')
+      .eq('user_id', selectedUser.id)
+      .eq('game_id', game.id)
+      .order('completed_date', { ascending: false });
+    
+    setHistoryProgress(data || []);
+  };
+
 
   useEffect(() => {
     loadRelationships();
@@ -557,7 +573,22 @@ return (
                   )}
                 </div>
                 <div>
-                  <h3 className="text-xl font-extrabold text-foreground leading-none mb-1">{selectedUser.username}</h3>
+                  <div className="flex items-center space-x-3 mb-1">
+                      <h3 className="text-xl font-extrabold text-foreground leading-none">{selectedUser.username}</h3>
+                      {selectedUser.id !== currentUser && !isFollowing(selectedUser.id) && (
+                        <button
+                          onClick={() => handleFollow(selectedUser.id)}
+                          className="px-3 py-1 bg-primary text-primary-foreground text-xs font-bold rounded-full hover:opacity-90 transition-opacity shadow-sm flex items-center"
+                        >
+                          <UserPlus className="w-3 h-3 mr-1" /> Follow
+                        </button>
+                      )}
+                      {selectedUser.id !== currentUser && isFollowing(selectedUser.id) && (
+                        <span className="px-3 py-1 bg-muted text-muted-foreground border border-border text-xs font-bold rounded-full shadow-sm">
+                          Following
+                        </span>
+                      )}
+                    </div>
                   <div className="flex items-center space-x-2">
                     <span className="text-sm text-muted-foreground font-medium">Daily games catalog</span>
                     <span className="text-muted-foreground">•</span>
@@ -586,7 +617,7 @@ return (
                   {userGames.map((game) => {
                     const alreadyHaveIt = myGameUrls.has(game.global_game_id);
                     return (
-                      <div key={game.id} className="p-4 rounded-2xl flex flex-col justify-between h-36 transition-transform hover:-translate-y-1 shadow-sm border border-transparent" style={{ backgroundColor: (game.custom_color || game.global_games?.color || "#333333") || '#333' }}>
+                      <div key={game.id} onClick={() => openHistory(game)} className="p-4 rounded-2xl flex flex-col justify-between h-36 transition-transform hover:-translate-y-1 shadow-sm border border-transparent cursor-pointer relative" style={{ backgroundColor: (game.custom_color || game.global_games?.color || "#333333") || '#333' }}>
                         <div className="flex justify-between items-start">
                           <div className="flex items-center space-x-2 min-w-0">
                             {getGameLogo(game) && (
@@ -607,7 +638,7 @@ return (
                               <CheckCircle2 className="w-4 h-4 mr-1.5" />Already in catalog</div>
                           ) : (
                             <button
-                              onClick={() => handleCopyGame(game)}
+                                onClick={(e) => { e.stopPropagation(); handleCopyGame(game); }}
                               disabled={copyingId === game.id}
                               className="flex items-center px-4 py-2 bg-black/30 hover:bg-black/50 text-white rounded-xl text-sm font-bold transition-colors disabled:opacity-50 backdrop-blur-sm"
                             >
@@ -625,6 +656,61 @@ return (
           </div>
         </div>
       )}
+
+      {/* History Modal */}
+      {selectedHistoryGame && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm" onClick={() => setSelectedHistoryGame(null)}>
+          <div className="bg-card w-full max-w-lg max-h-[85vh] rounded-3xl shadow-2xl border border-border flex flex-col animate-in fade-in zoom-in-95 duration-200" onClick={e => e.stopPropagation()}>
+            <div className="flex justify-between items-center p-6 border-b border-border bg-muted/30">
+              <div className="flex items-center space-x-3">
+                {getGameLogo(selectedHistoryGame) ? (
+                  <img src={getGameLogo(selectedHistoryGame)} alt="" className="w-10 h-10 rounded-lg object-cover shadow-sm border border-border" />
+                ) : (
+                  <Gamepad2 className="w-8 h-8 text-muted-foreground" />
+                )}
+                <div>
+                  <h3 className="text-xl font-extrabold text-foreground leading-none mb-1">
+                    {(selectedHistoryGame.custom_name || selectedHistoryGame.global_games?.name || "")}
+                  </h3>
+                  <p className="text-sm text-muted-foreground font-medium">{selectedUser?.username}'s History</p>
+                </div>
+              </div>
+              <button 
+                onClick={() => setSelectedHistoryGame(null)}
+                className="text-muted-foreground hover:text-foreground transition-colors bg-background p-1.5 rounded-full border border-border shadow-sm"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            
+            <div className="p-6 overflow-y-auto flex-1 space-y-4">
+              {historyProgress.length === 0 ? (
+                <div className="text-center py-12">
+                  <Circle className="w-12 h-12 text-muted-foreground mx-auto mb-3 opacity-30" />
+                  <p className="text-muted-foreground font-medium">This user hasn't played this game yet.</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {historyProgress.map((prog, i) => (
+                    <div key={i} className="p-4 rounded-xl border border-border bg-muted/30 flex flex-col space-y-3">
+                      <div className="flex items-center space-x-2 text-sm font-bold text-foreground">
+                        <CheckCircle2 className="w-4 h-4 text-primary" />
+                        <span>{new Date(prog.completed_date + 'T00:00:00').toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })}</span>
+                      </div>
+                      {prog.share_text && (
+                        <div className="bg-background border border-border rounded-lg p-3 text-sm whitespace-pre-wrap font-mono text-muted-foreground">
+                          {prog.share_text}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }

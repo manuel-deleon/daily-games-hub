@@ -1,9 +1,16 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { Flame, Play, CheckCircle2, Circle, Plus, X, Loader2, Pencil, Trash2, Gamepad2, Upload } from 'lucide-react';
-import type { Game, Profile } from '../types';
+import type { Game } from '../types';
 
 export function Dashboard() {
+  // Helper for consistent local date string
+  const getLocalDateStr = (d: Date) => {
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+  };
   // Helper to get logo or favicon
   const getGameLogo = (game: any) => {
     const url = game.custom_logo_url || game.global_games?.logo_url;
@@ -20,11 +27,32 @@ export function Dashboard() {
     return undefined;
   };
 
-  const [profile, setProfile] = useState<Profile | null>(null);
+  
   const [games, setGames] = useState<Game[]>([]);
+  const [recommendedGames, setRecommendedGames] = useState<any[]>([]);
   const [completedTodayIds, setCompletedTodayIds] = useState<Set<string>>(new Set());
   const [isLoading, setIsLoading] = useState(true);
   const [isMarking, setIsMarking] = useState<string | null>(null);
+  const [selectedHistoryGame, setSelectedHistoryGame] = useState<Game | null>(null);
+  const [historyProgress, setHistoryProgress] = useState<{ completed_date: string, share_text: string | null }[]>([]);
+  const [showShareModal, setShowShareModal] = useState<string | null>(null);
+  const [shareText, setShareText] = useState("");
+  const [isSavingShare, setIsSavingShare] = useState(false);
+
+  const openHistory = async (game: Game) => {
+    setSelectedHistoryGame(game);
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) return;
+    const { data } = await supabase
+      .from('daily_progress')
+      .select('completed_date, share_text')
+      .eq('user_id', session.user.id)
+      .eq('game_id', game.id)
+      .order('completed_date', { ascending: false });
+    
+    setHistoryProgress(data || []);
+  };
+
 
   // Add/Edit Game Modal State
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -93,6 +121,7 @@ export function Dashboard() {
 
       setEditingGame(null);
       await loadData();
+        window.dispatchEvent(new Event('profileUpdated'));
     } catch (err: any) {
       setAddError(err.message || 'Error updating game.');
     } finally {
@@ -108,6 +137,7 @@ export function Dashboard() {
     const { error } = await supabase.from('user_games').delete().eq('id', game.id);
     if (!error) {
       await loadData();
+        window.dispatchEvent(new Event('profileUpdated'));
     }
   };
 
@@ -116,12 +146,10 @@ export function Dashboard() {
     if (!session) return;
 
     // Fetch Profile
-    const { data: profileData } = await supabase
-      .from('profiles')
-      .select('*, global_games(*)')
-      .eq('id', session.user.id)
-      .single();
-    if (profileData) setProfile(profileData);
+    
+
+    const { data: recsData } = await supabase.from('global_games').select('*').eq('is_recommended', true);
+    if (recsData) setRecommendedGames(recsData);
 
     // Fetch Games
     const { data: gamesData, error: gamesError } = await supabase
@@ -135,7 +163,7 @@ export function Dashboard() {
     }
 
     // Fetch Progress
-    const today = new Date().toISOString().split('T')[0];
+    const today = getLocalDateStr(new Date());
     const { data: progressData, error: progressError } = await supabase
       .from('daily_progress')
       .select('game_id')
@@ -147,6 +175,33 @@ export function Dashboard() {
       setCompletedTodayIds(completedIds);
     }
 
+
+    // Fetch Weekly Progress
+    const weekAgo = new Date();
+    weekAgo.setDate(weekAgo.getDate() - 7);
+    const weekAgoStr = getLocalDateStr(weekAgo);
+
+    const { data: weekData } = await supabase
+      .from('daily_progress')
+      .select('completed_date, game_id')
+      .eq('user_id', session.user.id)
+      .gte('completed_date', weekAgoStr);
+
+    if (weekData) {
+      const progress: Record<string, Set<string>> = {};
+      weekData.forEach(p => {
+        if (!progress[p.completed_date]) {
+          progress[p.completed_date] = new Set();
+        }
+        progress[p.completed_date].add(p.game_id);
+      });
+
+      const progressCounts: Record<string, number> = {};
+      Object.keys(progress).forEach(date => {
+        progressCounts[date] = progress[date].size;
+      });
+      setWeeklyProgress(progressCounts);
+    }
     setIsLoading(false);
   };
 
@@ -163,22 +218,27 @@ export function Dashboard() {
     
     if (isCompleted) {
       const { error } = await supabase.rpc('undo_game_completed', {
-        p_game_id: gameId
+        p_game_id: gameId,
+        p_local_date: getLocalDateStr(new Date())
       });
       if (!error) {
         await loadData();
+        window.dispatchEvent(new Event('profileUpdated'));
       } else {
-        console.error("Error undoing:", error);
+        console.error("Error undoing:", error); alert("Error deshaciendo progreso: " + error.message);
       }
     } else {
       const { error } = await supabase.rpc('mark_game_completed', {
-        p_game_id: gameId
+        p_game_id: gameId,
+        p_local_date: getLocalDateStr(new Date())
       });
   
       if (!error) {
         await loadData();
+        window.dispatchEvent(new Event('profileUpdated'));
+        setShowShareModal(gameId);
       } else {
-        console.error("Error marcando completado:", error);
+        console.error("Error marcando completado:", error); alert("Error guardando progreso: " + error.message);
       }
     }
     
@@ -186,6 +246,23 @@ export function Dashboard() {
   };
 
   
+  const handleSaveShareText = async () => {
+    if (!showShareModal) return;
+    setIsSavingShare(true);
+    const { data: { session } } = await supabase.auth.getSession();
+    if (session) {
+      const today = getLocalDateStr(new Date());
+      await supabase.from('daily_progress')
+        .update({ share_text: shareText })
+        .eq('user_id', session.user.id)
+        .eq('game_id', showShareModal)
+        .eq('completed_date', today);
+    }
+    setIsSavingShare(false);
+    setShowShareModal(null);
+    setShareText("");
+  };
+
   // Auto-extract name from URL
   const handleUrlChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const urlStr = e.target.value;
@@ -305,6 +382,7 @@ const handleAddGame = async (e: React.FormEvent) => {
       setNewGameColor('#709176');
       setLogoFile(null);
       await loadData();
+        window.dispatchEvent(new Event('profileUpdated'));
       setIsAddModalOpen(false);
     } catch (err: any) {
       setAddError(err.message || 'Error adding game.');
@@ -321,42 +399,7 @@ const handleAddGame = async (e: React.FormEvent) => {
   // Weekly progress
   const [weeklyProgress, setWeeklyProgress] = useState<Record<string, number>>({});
   
-  useEffect(() => {
-    const fetchWeeklyProgress = async () => {
-      if (!profile || games.length === 0) return;
-      
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) return;
 
-      const weekAgo = new Date();
-      weekAgo.setDate(weekAgo.getDate() - 7);
-      const weekAgoStr = weekAgo.toISOString().split('T')[0];
-
-      const { data } = await supabase
-        .from('daily_progress')
-        .select('completed_date, game_id')
-        .eq('user_id', session.user.id)
-        .gte('completed_date', weekAgoStr);
-
-      if (data) {
-        const progress: Record<string, Set<string>> = {};
-        data.forEach(p => {
-          if (!progress[p.completed_date]) {
-            progress[p.completed_date] = new Set();
-          }
-          progress[p.completed_date].add(p.game_id);
-        });
-
-        const progressCounts: Record<string, number> = {};
-        Object.keys(progress).forEach(date => {
-          progressCounts[date] = progress[date].size;
-        });
-        setWeeklyProgress(progressCounts);
-      }
-    };
-    
-    fetchWeeklyProgress();
-  }, [profile, games.length]);
 
   if (isLoading) {
     
@@ -387,12 +430,18 @@ return (
   const todayIndex = (today.getDay() + 6) % 7; // Monday = 0, Sunday = 6
   
   const getDayStatus = (offsetFromToday: number) => {
-    if (totalGames === 0) return false;
     const d = new Date();
     d.setDate(d.getDate() - offsetFromToday);
-    const dStr = d.toISOString().split('T')[0];
+    const dStr = getLocalDateStr(d);
     const completedCount = weeklyProgress[dStr] || 0;
-    return completedCount >= totalGames;
+    
+    // Si es hoy, exigimos que complete todos. Si es en el pasado, con que haya completado al menos 1 lo mostramos verde
+    // (porque no sabemos cuántos juegos tenía en total en ese momento exacto del pasado).
+    if (offsetFromToday === 0) {
+      if (totalGames === 0) return false;
+      return completedCount >= totalGames;
+    }
+    return completedCount > 0;
   };
 
   return (
@@ -418,14 +467,14 @@ return (
                 return (
                   <div key={dayIndex} className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs transition-all ${
                       isCompleted 
-                        ? 'bg-foreground text-background shadow-sm' 
+                        ? 'bg-primary text-primary-foreground shadow-sm' 
                         : isToday
                           ? 'bg-muted text-foreground ring-2 ring-primary ring-offset-2 ring-offset-background'
                           : isFuture
                             ? 'bg-transparent text-muted-foreground/30 border border-border/50'
                             : 'bg-muted text-muted-foreground'
                     }`}>
-                    {['S', 'M', 'T', 'W', 'T', 'F', 'S'][(new Date(new Date().setDate(new Date().getDate() - offset))).getDay()]}
+                    {( () => { const d = new Date(); d.setDate(d.getDate() - offset); return ['S', 'M', 'T', 'W', 'T', 'F', 'S'][d.getDay()]; })()}
                   </div>
                 );
               })}
@@ -461,16 +510,10 @@ return (
               return (
                 <div 
                   key={game.id}
-                  className="group relative flex flex-row sm:flex-col items-center sm:items-start justify-between p-4 sm:p-5 rounded-xl sm:rounded-2xl border border-border bg-card hover:bg-muted/30 transition-all sm:hover:border-primary/50 gap-4"
+                  onClick={() => openHistory(game)}
+                  className="group cursor-pointer relative flex flex-row sm:flex-col items-center sm:items-start justify-between p-4 sm:p-5 rounded-xl sm:rounded-2xl border border-border bg-card hover:bg-muted/30 transition-all sm:hover:border-primary/50 gap-4"
                 >
-                  {/* Invisible Link covering the whole card for Play */}
-                  <a 
-                    href={game.global_games?.url || ""}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="absolute inset-0 z-0 rounded-xl sm:rounded-2xl"
-                    aria-label={`Play ${game.custom_name || game.global_games?.name}`}
-                  ></a>
+                  
 
                   {/* Absolute Edit/Delete Menu (Desktop hover) */}
                   <div className="hidden sm:flex absolute top-3 right-3 items-center space-x-1 opacity-0 group-hover:opacity-100 transition-opacity z-20">
@@ -482,7 +525,7 @@ return (
                     </button>
                   </div>
 
-                  <div className="flex items-center space-x-4 min-w-0 flex-1 w-full z-10 pointer-events-none">
+                  <div className="flex items-center space-x-4 min-w-0 flex-1 w-full z-10">
                     {getGameLogo(game) ? (
                       <img src={getGameLogo(game)} alt={(game.custom_name || game.global_games?.name || "")} className="w-12 h-12 sm:w-14 sm:h-14 rounded-xl object-cover shadow-sm border border-border flex-shrink-0" />
                     ) : (
@@ -534,10 +577,11 @@ return (
                       href={game.global_games?.url || ""}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="hidden sm:flex flex-1 items-center justify-center py-2.5 px-4 bg-background hover:bg-muted border border-border text-foreground font-bold rounded-xl transition-colors text-sm shadow-sm relative"
+                      onClick={(e) => e.stopPropagation()}
+                      className="flex flex-1 items-center justify-center py-2 px-3 sm:py-2.5 sm:px-4 bg-background hover:bg-muted border border-border text-foreground font-bold rounded-lg sm:rounded-xl transition-colors text-sm shadow-sm relative"
                     >
-                      <Play className="w-4 h-4 mr-2" />
-                      Play
+                      <Play className="w-4 h-4 sm:mr-2" />
+                      <span className="hidden sm:inline">Play</span>
                     </a>
 
                     <button
@@ -577,44 +621,34 @@ return (
             )}
           </div>
           <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-            {[
-              { name: 'Wordle', url: 'https://www.nytimes.com/games/wordle/index.html', icon: 'https://www.nytimes.com/games-assets/v2/metadata/wordle-apple-touch-icon.png' },
-              { name: 'Connections', url: 'https://www.nytimes.com/games/connections', icon: 'https://www.nytimes.com/games-assets/v2/metadata/connections-apple-touch-icon.png' },
-              { name: 'Strands', url: 'https://www.nytimes.com/games/strands', icon: 'https://www.nytimes.com/games-assets/v2/metadata/strands-apple-touch-icon.png' }
-            ].map((rec) => {
-              const alreadyHasIt = games.some(g => (g.custom_name || g.global_games?.name) === rec.name);
+            {recommendedGames.map((rec) => {
+              const alreadyHasIt = games.some(g => g.global_game_id === rec.id);
               if (alreadyHasIt) return null;
               
               return (
-                <div key={rec.name} className="flex flex-col p-4 rounded-xl border border-border bg-card shadow-sm hover:shadow-md transition-shadow group">
+                <div key={rec.id} className="flex flex-col p-4 rounded-xl border border-border bg-card shadow-sm hover:shadow-md transition-shadow group">
                   <div className="flex items-center space-x-3 mb-4">
-                    <img src={rec.icon} alt={rec.name} className="w-10 h-10 rounded-xl object-cover shadow-sm flex-shrink-0 border border-border" />
+                    <img src={rec.logo_url} alt={rec.name} className="w-10 h-10 rounded-xl object-cover shadow-sm flex-shrink-0 border border-border" />
                     <span className="font-bold text-foreground truncate">{rec.name}</span>
                   </div>
                   <button
-                    disabled={addingRec === rec.name}
+                    disabled={addingRec === rec.id}
                     onClick={async () => {
-                      setAddingRec(rec.name);
-                      try {
-                        const { data: { session } } = await supabase.auth.getSession();
-                        if (session) {
-                          const { data: existingGlobal } = await supabase.from('global_games').select('id').eq('url', rec.url).maybeSingle();
-                          let gId = existingGlobal?.id;
-                          if (!gId) {
-                              const { data: newG } = await supabase.from('global_games').insert({ url: rec.url, name: rec.name, logo_url: rec.icon, color: '#333333' }).select().single();
-                              gId = newG.id;
-                          }
-                          await supabase.from('user_games').insert({ user_id: session.user.id, global_game_id: gId });
-
-                          await loadData();
-                        }
-                      } finally {
-                        setAddingRec(null);
-                      }
+                      setAddingRec(rec.id);
+try {
+  const { data: { session } } = await supabase.auth.getSession();
+  if (session) {
+    await supabase.from('user_games').insert({ user_id: session.user.id, global_game_id: rec.id });
+    await loadData();
+    window.dispatchEvent(new Event('profileUpdated'));
+  }
+} finally {
+  setAddingRec(null);
+}
                     }}
                     className="mt-auto flex items-center justify-center py-2 px-3 bg-primary text-primary-foreground hover:opacity-90 rounded-lg text-sm font-bold transition-colors w-full shadow-sm disabled:opacity-50"
                   >
-                    {addingRec === rec.name ? <Loader2 className="w-4 h-4 mr-1.5 animate-spin" /> : <Plus className="w-4 h-4 mr-1.5" />}
+                    {addingRec === rec.id ? <Loader2 className="w-4 h-4 mr-1.5 animate-spin" /> : <Plus className="w-4 h-4 mr-1.5" />}
                     Add
                   </button>
                 </div>
@@ -733,6 +767,112 @@ return (
           </div>
         </div>
       )}
+
+      {/* Share Modal */}
+      {showShareModal && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm">
+          <div className="bg-card w-full max-w-md rounded-3xl shadow-2xl border border-border overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+            <div className="flex justify-between items-center p-6 border-b border-border bg-muted/30">
+              <h3 className="text-xl font-extrabold text-foreground tracking-tight">Game Completed!</h3>
+              <button 
+                onClick={() => setShowShareModal(null)}
+                className="text-muted-foreground hover:text-foreground transition-colors bg-background p-1.5 rounded-full border border-border shadow-sm"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            
+            <div className="p-6 space-y-5">
+              <div className="space-y-2">
+                <label className="text-sm font-bold text-foreground">Paste your results (Optional)</label>
+                <textarea
+                  placeholder="e.g. Wordle 1,024 3/6
+
+⬛🟨⬛⬛🟩
+🟩🟩🟩🟩🟩"
+                  value={shareText}
+                  onChange={(e) => setShareText(e.target.value)}
+                  className="w-full px-4 py-3 border bg-background border-border rounded-xl text-foreground focus:outline-none focus:ring-2 focus:ring-primary shadow-sm min-h-[120px] resize-none"
+                />
+                <p className="text-xs text-muted-foreground">Share your Wordle or Connections emojis to keep track of your history!</p>
+              </div>
+
+              <div className="flex justify-end gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowShareModal(null)}
+                  className="px-5 py-2.5 text-sm font-bold text-foreground bg-background border border-border hover:bg-muted rounded-xl transition-colors shadow-sm"
+                >
+                  Skip
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSaveShareText}
+                  disabled={isSavingShare}
+                  className="flex items-center justify-center min-w-[120px] px-5 py-2.5 text-sm font-bold text-primary-foreground bg-primary hover:opacity-90 rounded-xl transition-colors disabled:opacity-50 shadow-sm"
+                >
+                  {isSavingShare ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Save'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* History Modal */}
+      {selectedHistoryGame && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm" onClick={() => setSelectedHistoryGame(null)}>
+          <div className="bg-card w-full max-w-lg max-h-[85vh] rounded-3xl shadow-2xl border border-border flex flex-col animate-in fade-in zoom-in-95 duration-200" onClick={e => e.stopPropagation()}>
+            <div className="flex justify-between items-center p-6 border-b border-border bg-muted/30">
+              <div className="flex items-center space-x-3">
+                {getGameLogo(selectedHistoryGame) ? (
+                  <img src={getGameLogo(selectedHistoryGame)} alt="" className="w-10 h-10 rounded-lg object-cover shadow-sm border border-border" />
+                ) : (
+                  <Gamepad2 className="w-8 h-8 text-muted-foreground" />
+                )}
+                <div>
+                  <h3 className="text-xl font-extrabold text-foreground leading-none mb-1">
+                    {(selectedHistoryGame.custom_name || selectedHistoryGame.global_games?.name || "")}
+                  </h3>
+                  <p className="text-sm text-muted-foreground font-medium">Your Play History</p>
+                </div>
+              </div>
+              <button 
+                onClick={() => setSelectedHistoryGame(null)}
+                className="text-muted-foreground hover:text-foreground transition-colors bg-background p-1.5 rounded-full border border-border shadow-sm"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            
+            <div className="p-6 overflow-y-auto flex-1 space-y-4">
+              {historyProgress.length === 0 ? (
+                <div className="text-center py-12">
+                  <Circle className="w-12 h-12 text-muted-foreground mx-auto mb-3 opacity-30" />
+                  <p className="text-muted-foreground font-medium">You haven't played this game yet.</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {historyProgress.map((prog, i) => (
+                    <div key={i} className="p-4 rounded-xl border border-border bg-muted/30 flex flex-col space-y-3">
+                      <div className="flex items-center space-x-2 text-sm font-bold text-foreground">
+                        <CheckCircle2 className="w-4 h-4 text-primary" />
+                        <span>{new Date(prog.completed_date + 'T00:00:00').toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })}</span>
+                      </div>
+                      {prog.share_text && (
+                        <div className="bg-background border border-border rounded-lg p-3 text-sm whitespace-pre-wrap font-mono text-muted-foreground">
+                          {prog.share_text}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }

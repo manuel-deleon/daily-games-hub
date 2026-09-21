@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Outlet, useNavigate, Link, useLocation } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
-import { Flame, User as UserIcon, Users, Bell, Home, Shield } from 'lucide-react';
+import { Flame, User as UserIcon, Users, Bell, Home, Shield, Lightbulb, Megaphone } from 'lucide-react';
 import type { Profile } from '../types';
 
 
@@ -15,7 +15,7 @@ export function Layout() {
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   
   useEffect(() => {
-    async function loadProfile() {
+    const loadProfile = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
         navigate('/login');
@@ -37,9 +37,36 @@ export function Layout() {
   }, [navigate]);
 
   useEffect(() => {
+    const handleProfileUpdated = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
+      const { data, error } = await supabase.from('profiles').select('*').eq('id', session.user.id).single();
+      if (!error && data) setProfile(data);
+    };
+    window.addEventListener('profileUpdated', handleProfileUpdated);
+    return () => window.removeEventListener('profileUpdated', handleProfileUpdated);
+  }, []);
+
+  useEffect(() => {
     if (!profile) return;
 
-    const channel = supabase
+    const profileChannel = supabase
+        .channel('public:profiles')
+        .on(
+          'postgres_changes',
+          {
+            event: 'UPDATE',
+            schema: 'public',
+            table: 'profiles',
+            filter: `id=eq.${profile.id}`,
+          },
+          (payload) => {
+            setProfile(payload.new as Profile);
+          }
+        )
+        .subscribe();
+
+      const channel = supabase
       .channel('public:friendships')
       .on(
         'postgres_changes',
@@ -65,7 +92,9 @@ export function Layout() {
       .subscribe();
 
     return () => {
-      supabase.removeChannel(channel);
+      supabase.removeChannel(profileChannel);
+        supabase.removeChannel(channel);
+
     };
   }, [profile]);
 
@@ -113,7 +142,35 @@ export function Layout() {
                 <Users className="w-4 h-4" />
                 <span>{'Community'}</span>
               </Link>
-              {profile?.is_admin && (
+              <Link 
+                to="/suggestions" 
+                className={`font-semibold flex items-center space-x-2 transition-colors ${isActive('/suggestions') ? 'text-primary' : 'text-muted-foreground hover:text-foreground'}`}
+              >
+                <Lightbulb className="w-4 h-4" />
+                <span>{'Suggestions'}</span>
+              </Link>
+              <Link 
+                to="/updates" 
+                className={`font-semibold flex items-center space-x-2 transition-colors ${isActive('/updates') ? 'text-primary' : 'text-muted-foreground hover:text-foreground'}`}
+              >
+                <Megaphone className="w-4 h-4" />
+                <span>{'Updates'}</span>
+              </Link>
+              <Link 
+            to="/suggestions" 
+            className={`flex flex-col items-center justify-center w-full h-full space-y-1 ${isActive('/suggestions') ? 'text-primary' : 'text-muted-foreground hover:text-foreground'}`}
+          >
+            <Lightbulb className="w-5 h-5" />
+            <span className="text-[10px] font-semibold">{'Ideas'}</span>
+          </Link>
+          <Link 
+            to="/updates" 
+            className={`flex flex-col items-center justify-center w-full h-full space-y-1 ${isActive('/updates') ? 'text-primary' : 'text-muted-foreground hover:text-foreground'}`}
+          >
+            <Megaphone className="w-5 h-5" />
+            <span className="text-[10px] font-semibold">{'Updates'}</span>
+          </Link>
+          {profile?.is_admin && (
                 <Link 
                   to="/admin" 
                   className={`font-semibold flex items-center space-x-2 transition-colors ${isActive('/admin') ? 'text-primary' : 'text-muted-foreground hover:text-foreground'}`}
@@ -156,7 +213,7 @@ export function Layout() {
 
       {/* Bottom Navigation Bar (Mobile Only) */}
       <div className="sm:hidden fixed bottom-0 left-0 right-0 z-40 bg-card border-t border-border pb-safe">
-        <div className="flex justify-around items-center h-16 px-4">
+        <div className="flex justify-around items-center h-16 px-1 sm:px-4">
           <Link 
             to="/dashboard" 
             className={`flex flex-col items-center justify-center w-full h-full space-y-1 ${isActive('/dashboard') ? 'text-primary' : 'text-muted-foreground hover:text-foreground'}`}
@@ -172,11 +229,18 @@ export function Layout() {
             <span className="text-[10px] font-semibold">{'Community'}</span>
           </Link>
           <Link 
-            to="/profile" 
-            className={`flex flex-col items-center justify-center w-full h-full space-y-1 ${isActive('/profile') ? 'text-primary' : 'text-muted-foreground hover:text-foreground'}`}
+            to="/suggestions" 
+            className={`flex flex-col items-center justify-center w-full h-full space-y-1 ${isActive('/suggestions') ? 'text-primary' : 'text-muted-foreground hover:text-foreground'}`}
           >
-            <UserIcon className="w-5 h-5" />
-            <span className="text-[10px] font-semibold">{'Profile'}</span>
+            <Lightbulb className="w-5 h-5" />
+            <span className="text-[10px] font-semibold">{'Ideas'}</span>
+          </Link>
+          <Link 
+            to="/updates" 
+            className={`flex flex-col items-center justify-center w-full h-full space-y-1 ${isActive('/updates') ? 'text-primary' : 'text-muted-foreground hover:text-foreground'}`}
+          >
+            <Megaphone className="w-5 h-5" />
+            <span className="text-[10px] font-semibold">{'Updates'}</span>
           </Link>
           {profile?.is_admin && (
             <Link 
@@ -187,6 +251,13 @@ export function Layout() {
               <span className="text-[10px] font-semibold">Admin</span>
             </Link>
           )}
+          <Link 
+            to="/profile" 
+            className={`flex flex-col items-center justify-center w-full h-full space-y-1 ${isActive('/profile') ? 'text-primary' : 'text-muted-foreground hover:text-foreground'}`}
+          >
+            <UserIcon className="w-5 h-5" />
+            <span className="text-[10px] font-semibold">{'Profile'}</span>
+          </Link>
         </div>
       </div>
 
