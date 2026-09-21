@@ -28,6 +28,7 @@ export function Dashboard() {
   };
 
   
+  const isPWA = window.matchMedia('(display-mode: standalone)').matches || ('standalone' in navigator && (navigator as any).standalone);
   const [games, setGames] = useState<Game[]>([]);
   const [recommendedGames, setRecommendedGames] = useState<any[]>([]);
   const [allGlobalGames, setAllGlobalGames] = useState<any[]>([]);
@@ -589,8 +590,8 @@ return (
                     <div className="grid grid-cols-2 gap-2 w-full mt-2 z-10 relative">
                       <a 
                         href={game.global_games?.url || ""}
-                        target="_blank"
-                        rel="noopener noreferrer"
+                        target={isPWA ? '_self' : '_blank'}
+                        rel={isPWA ? '' : 'noopener noreferrer'}
                         onClick={(e) => e.stopPropagation()}
                         className="flex items-center justify-center py-2.5 px-4 bg-background hover:bg-muted border border-border text-foreground font-bold rounded-xl transition-colors text-sm shadow-sm relative"
                       >
