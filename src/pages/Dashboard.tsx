@@ -494,8 +494,17 @@ return (
 
   // Dashboard calculations
   const sortedGames = [...games].sort((a: any, b: any) => {
+    // Pins have absolute maximum priority
     if (a.is_pinned && !b.is_pinned) return -1;
     if (!a.is_pinned && b.is_pinned) return 1;
+    
+    // Then sort by completion status (completed at bottom)
+    const aCompleted = completedTodayIds.has(a.id);
+    const bCompleted = completedTodayIds.has(b.id);
+    if (aCompleted && !bCompleted) return 1;
+    if (!aCompleted && bCompleted) return -1;
+
+    // Finally sort by creation date
     return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
   });
   const totalGames = games.length;

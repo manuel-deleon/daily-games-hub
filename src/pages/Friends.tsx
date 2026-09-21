@@ -2,12 +2,14 @@ import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { Search, UserPlus, Users, Flame, Copy, Loader2, CheckCircle2, X, Trophy, Hash, Gamepad2 , Circle } from 'lucide-react';
 import type { Profile, Game } from '../types';
+import { useTheme } from '../hooks/useTheme';
 
 interface FollowProfile extends Profile {
   relationship_id: string;
 }
 
 export function Friends() {
+  const { theme } = useTheme();
   const getGameLogo = (game: any) => {
     const url = game.custom_logo_url || game.global_games?.logo_url;
     if (url) return url;
@@ -140,10 +142,14 @@ export function Friends() {
       
       let query = supabase.from('profiles').select('*');
       
-      if (rankingScope === 'friends' && followingIdsList.length > 0) {
-        query = query.in('id', followingIdsList);
-      } else if (rankingScope === 'global') {
-        query = query.limit(50);
+      if (rankingScope === 'friends') {
+        if (followingIdsList.length > 0) {
+          query = query.in('id', [...followingIdsList, currentUser]);
+        } else {
+          query = query.in('id', [currentUser]);
+        }
+      } else {
+        query = query.eq('is_admin', false); // Hide admins from global ranking
       }
       
       if (rankingMode === 'highest') {
@@ -339,7 +345,7 @@ return (
             {myRank && ranking.length > 0 && (
               <div className="flex items-center bg-primary/10 text-primary px-3 py-1.5 rounded-lg font-bold text-sm mb-4 w-fit">
                 <Hash className="w-4 h-4 mr-1" />
-                Your Rank: {myRank}/{rankingScope === 'global' ? '50+' : ranking.length}
+                Your Rank: {myRank}/{ranking.length}
               </div>
             )}
 
@@ -589,12 +595,14 @@ return (
                         </span>
                       )}
                     </div>
-                  <div className="flex items-center space-x-2">
-                    <span className="text-sm text-muted-foreground font-medium">Daily games catalog</span>
-                    <span className="text-muted-foreground">•</span>
-                    <span className="text-sm font-bold text-[#D4A336] flex items-center">
-                      <Flame className="w-3.5 h-3.5 mr-1" />
-                      PB: {selectedUser.highest_streak || selectedUser.global_streak || 0}
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:space-x-4 space-y-1 sm:space-y-0 mt-2">
+                    <span className="text-sm font-bold text-[#D4A336] flex items-center bg-[#D4A336]/10 px-2.5 py-1 rounded-lg w-fit">
+                      <Flame className="w-4 h-4 mr-1.5" />
+                      Global Streak: {selectedUser.global_streak || 0}
+                    </span>
+                    <span className="text-sm font-bold text-orange-500 flex items-center bg-orange-500/10 px-2.5 py-1 rounded-lg w-fit">
+                      <Flame className="w-4 h-4 mr-1.5" />
+                      Personal Best: {selectedUser.highest_streak || selectedUser.global_streak || 0}
                     </span>
                   </div>
                 </div>
@@ -616,17 +624,21 @@ return (
                 <div className="flex flex-col sm:grid sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-5">
                   {userGames.map((game) => {
                     const alreadyHaveIt = myGameUrls.has(game.global_game_id);
+                    const dbColor = game.custom_color || game.global_games?.color || "#333333";
+                    const isDefaultDark = dbColor === '#333333';
+                    const useLightFallback = isDefaultDark && theme === 'light';
+                    
                     return (
-                      <div key={game.id} onClick={() => openHistory(game)} className="p-4 rounded-2xl flex flex-col justify-between h-36 transition-transform hover:-translate-y-1 shadow-sm border border-transparent cursor-pointer relative" style={{ backgroundColor: (game.custom_color || game.global_games?.color || "#333333") || '#333' }}>
+                      <div key={game.id} onClick={() => openHistory(game)} className={`p-4 rounded-2xl flex flex-col justify-between h-36 transition-transform hover:-translate-y-1 shadow-sm border cursor-pointer relative ${useLightFallback ? 'bg-muted border-border' : 'border-transparent'}`} style={useLightFallback ? undefined : { backgroundColor: dbColor }}>
                         <div className="flex justify-between items-start">
                           <div className="flex items-center space-x-2 min-w-0">
                             {getGameLogo(game) && (
-                               <img src={getGameLogo(game)} alt="" className="w-8 h-8 rounded-lg object-cover shadow-sm bg-white/20" />
+                               <img src={getGameLogo(game)} alt="" className={`w-8 h-8 rounded-lg object-cover shadow-sm ${useLightFallback ? 'bg-background' : 'bg-white/20'}`} />
                             )}
-                            <h4 className="font-bold text-white text-lg truncate">{(game.custom_name || game.global_games?.name || "")}</h4>
+                            <h4 className={`font-bold text-lg truncate ${useLightFallback ? 'text-foreground' : 'text-white'}`}>{(game.custom_name || game.global_games?.name || "")}</h4>
                           </div>
                           
-                          <div className="flex items-center text-white/90 bg-black/20 px-2 py-1 rounded-lg text-xs font-bold backdrop-blur-sm" title="Streak in this game">
+                          <div className={`flex items-center px-2 py-1 rounded-lg text-xs font-bold backdrop-blur-sm ${useLightFallback ? 'bg-background/50 text-foreground border border-border/50' : 'bg-black/20 text-white/90'}`} title="Streak in this game">
                             <Flame className="w-3.5 h-3.5 mr-1 text-[#D4A336]" />
                             {game.current_streak}
                           </div>
@@ -634,13 +646,13 @@ return (
                         
                         <div className="flex justify-end mt-4">
                           {alreadyHaveIt ? (
-                            <div className="flex items-center px-4 py-2 bg-white/20 text-white rounded-xl text-sm font-bold backdrop-blur-sm">
+                            <div className={`flex items-center px-4 py-2 rounded-xl text-sm font-bold backdrop-blur-sm ${useLightFallback ? 'bg-background/50 text-foreground border border-border/50' : 'bg-white/20 text-white'}`}>
                               <CheckCircle2 className="w-4 h-4 mr-1.5" />Already in catalog</div>
                           ) : (
                             <button
                                 onClick={(e) => { e.stopPropagation(); handleCopyGame(game); }}
                               disabled={copyingId === game.id}
-                              className="flex items-center px-4 py-2 bg-black/30 hover:bg-black/50 text-white rounded-xl text-sm font-bold transition-colors disabled:opacity-50 backdrop-blur-sm"
+                              className={`flex items-center px-4 py-2 rounded-xl text-sm font-bold transition-colors disabled:opacity-50 backdrop-blur-sm ${useLightFallback ? 'bg-primary/10 hover:bg-primary/20 text-primary border border-primary/20' : 'bg-black/30 hover:bg-black/50 text-white'}`}
                             >
                               {copyingId === game.id ? <Loader2 className="w-4 h-4 mr-1.5 animate-spin" /> : <Copy className="w-4 h-4 mr-1.5" />}
                               Copy to my catalog

@@ -80,10 +80,12 @@ export function Suggestions() {
     await loadData();
   };
 
+  const [isAnonymous, setIsAnonymous] = useState(false);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newTitle.trim() || !newDescription.trim()) {
-      setSubmitError('Title and description are required.');
+    if (!newTitle.trim()) {
+      setSubmitError('Title is required.');
       return;
     }
     
@@ -93,7 +95,8 @@ export function Suggestions() {
     const { error } = await supabase.from('suggestions').insert({
       user_id: session.user.id,
       title: newTitle.trim(),
-      description: newDescription.trim()
+      description: newDescription.trim() || null,
+      is_anonymous: isAnonymous
     });
     
     if (error) {
@@ -101,6 +104,7 @@ export function Suggestions() {
     } else {
       setNewTitle('');
       setNewDescription('');
+      setIsAnonymous(false);
       setIsAdding(false);
       setSubmitError(null);
       await loadData();
@@ -108,7 +112,7 @@ export function Suggestions() {
   };
 
   const handleDeleteSuggestion = async (suggestionId: string) => {
-    if (!confirm('Are you sure you want to delete this suggestion?')) return;
+    if (!confirm('Are you sure you want to delete this?')) return;
     await supabase.from('suggestions').delete().eq('id', suggestionId);
     await loadData();
   };
@@ -140,22 +144,22 @@ export function Suggestions() {
         <div>
           <h1 className="text-3xl font-black tracking-tight text-foreground flex items-center">
             <Lightbulb className="w-8 h-8 mr-3 text-primary" />
-            Suggestions
+            Ideas & Bugs
           </h1>
-          <p className="text-muted-foreground mt-1 font-medium">Vote on ideas or submit your own for the community.</p>
+          <p className="text-muted-foreground mt-1 font-medium">Vote on ideas, report bugs, or submit feedback.</p>
         </div>
         <button
           onClick={() => setIsAdding(!isAdding)}
           className="flex items-center px-5 py-2.5 bg-primary text-primary-foreground font-bold rounded-xl hover:opacity-90 transition-colors shadow-sm"
         >
-          {isAdding ? 'Cancel' : <><Plus className="w-5 h-5 mr-1.5" /> New Idea</>}
+          {isAdding ? 'Cancel' : <><Plus className="w-5 h-5 mr-1.5" /> New Post</>}
         </button>
       </div>
       
       {isAdding && (
         <div className="bg-card rounded-3xl p-6 border border-border shadow-sm mb-8 animate-in slide-in-from-top-4 fade-in duration-300">
           <h3 className="text-xl font-bold mb-4 flex items-center">
-            <MessageSquare className="w-5 h-5 mr-2 text-primary" /> Submit a Suggestion
+            <MessageSquare className="w-5 h-5 mr-2 text-primary" /> Submit Feedback
           </h3>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
@@ -170,19 +174,31 @@ export function Suggestions() {
               />
             </div>
             <div>
-              <label className="block text-sm font-bold mb-1.5">Description</label>
+              <label className="block text-sm font-bold mb-1.5">Description (Optional)</label>
               <textarea
                 value={newDescription}
                 onChange={e => setNewDescription(e.target.value)}
-                placeholder="What exactly would you like to see?"
+                placeholder="Details about your idea or bug..."
                 className="w-full px-4 py-2.5 bg-background border border-border rounded-xl focus:ring-2 focus:ring-primary outline-none min-h-[100px] resize-none"
                 maxLength={1000}
               />
             </div>
+            <div className="flex items-center space-x-2">
+              <input
+                type="checkbox"
+                id="anonymous"
+                checked={isAnonymous}
+                onChange={e => setIsAnonymous(e.target.checked)}
+                className="w-4 h-4 text-primary bg-background border-border rounded focus:ring-primary"
+              />
+              <label htmlFor="anonymous" className="text-sm font-medium text-foreground">
+                Post anonymously
+              </label>
+            </div>
             {submitError && <p className="text-destructive text-sm font-bold">{submitError}</p>}
             <div className="flex justify-end">
               <button type="submit" className="px-6 py-2.5 bg-primary text-primary-foreground font-bold rounded-xl hover:opacity-90 shadow-sm">
-                Submit Idea
+                Submit
               </button>
             </div>
           </form>
@@ -234,7 +250,7 @@ export function Suggestions() {
                 </div>
                 <p className="text-muted-foreground text-sm mb-3 whitespace-pre-wrap break-words [word-break:break-word]">{s.description}</p>
                 <div className="flex items-center text-xs text-muted-foreground/60 font-medium">
-                  <span className="truncate">By {s.username || 'Anonymous'}</span>
+                  <span className="truncate">By {s.is_anonymous ? 'Anonymous' : (s.username || 'Anonymous')}</span>
                   <span className="mx-2">•</span>
                   <span>{new Date(s.created_at).toLocaleDateString()}</span>
                 </div>
