@@ -194,7 +194,8 @@ export function Dashboard() {
     
     if (isCompleted) {
       const { error } = await supabase.rpc('undo_game_completed', {
-        p_game_id: gameId
+        p_game_id: gameId,
+        p_local_date: getLocalDateStr(new Date())
       });
       if (!error) {
         await loadData();
@@ -204,7 +205,8 @@ export function Dashboard() {
       }
     } else {
       const { error } = await supabase.rpc('mark_game_completed', {
-        p_game_id: gameId
+        p_game_id: gameId,
+        p_local_date: getLocalDateStr(new Date())
       });
   
       if (!error) {
