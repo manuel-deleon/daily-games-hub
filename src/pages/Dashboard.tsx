@@ -201,7 +201,7 @@ export function Dashboard() {
         await loadData();
         window.dispatchEvent(new Event('profileUpdated'));
       } else {
-        console.error("Error undoing:", error);
+        console.error("Error undoing:", error); alert("Error deshaciendo progreso: " + error.message);
       }
     } else {
       const { error } = await supabase.rpc('mark_game_completed', {
@@ -213,7 +213,7 @@ export function Dashboard() {
         await loadData();
         window.dispatchEvent(new Event('profileUpdated'));
       } else {
-        console.error("Error marcando completado:", error);
+        console.error("Error marcando completado:", error); alert("Error guardando progreso: " + error.message);
       }
     }
     
