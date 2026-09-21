@@ -515,12 +515,12 @@ return (
                 <div 
                   key={game.id}
                   onClick={() => openHistory(game)}
-                  className="group cursor-pointer relative flex flex-row sm:flex-col items-center sm:items-start justify-between p-4 sm:p-5 rounded-xl sm:rounded-2xl border border-border bg-card hover:bg-muted/30 transition-all sm:hover:border-primary/50 gap-4"
+                  className="group cursor-pointer relative flex flex-col items-start justify-between p-4 sm:p-5 rounded-xl sm:rounded-2xl border border-border bg-card hover:bg-muted/30 transition-all hover:border-primary/50 gap-4"
                 >
                   
 
                   {/* Absolute Edit/Delete Menu (Desktop hover) */}
-                  <div className="hidden sm:flex absolute top-3 right-3 items-center space-x-1 opacity-0 group-hover:opacity-100 transition-opacity z-20">
+                  <div className="flex absolute top-3 right-3 items-center space-x-1 sm:opacity-0 group-hover:opacity-100 transition-opacity z-20">
                     <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); openEditModal(game); }} className="p-1.5 text-muted-foreground hover:text-foreground transition-colors rounded-md hover:bg-background shadow-sm border border-border bg-card relative" title="Edit">
                       <Pencil className="w-3.5 h-3.5" />
                     </button>
@@ -538,7 +538,7 @@ return (
                       </div>
                     )}
                     
-                    <div className="flex flex-col min-w-0 sm:pr-8">
+                    <div className="flex flex-col min-w-0 pr-16 sm:pr-8">
                       <h3 className="text-lg font-bold text-foreground truncate" title={(game.custom_name || game.global_games?.name || "")}>
                         {(game.custom_name || game.global_games?.name || "")}
                       </h3>
@@ -565,49 +565,37 @@ return (
                   </div>
                   
                   {/* Buttons wrapper (z-10 so they are clickable above the absolute link) */}
-                  <div className="flex items-center justify-end space-x-2 w-auto sm:w-full sm:mt-2 z-10 relative">
-                    
-                    {/* Mobile Edit/Delete */}
-                    <div className="flex sm:hidden items-center space-x-1 mr-1">
-                      <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); openEditModal(game); }} className="p-2 text-muted-foreground hover:text-foreground relative" title="Edit">
-                        <Pencil className="w-4 h-4" />
-                      </button>
-                      <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleDeleteGame(game); }} className="p-2 text-muted-foreground hover:text-destructive relative" title="Delete">
-                        <Trash2 className="w-4 h-4" />
+                    <div className="grid grid-cols-2 gap-2 w-full mt-2 z-10 relative">
+                      <a 
+                        href={game.global_games?.url || ""}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={(e) => e.stopPropagation()}
+                        className="flex items-center justify-center py-2.5 px-4 bg-background hover:bg-muted border border-border text-foreground font-bold rounded-xl transition-colors text-sm shadow-sm relative"
+                      >
+                        <Play className="w-4 h-4 mr-2" />
+                        <span>Play</span>
+                      </a>
+
+                      <button
+                        onClick={(e) => handleMarkCompleted(e, game.id)}
+                        disabled={isMarking === game.id}
+                        className={`relative flex items-center justify-center py-2.5 px-4 font-bold rounded-xl transition-colors disabled:opacity-50 text-sm whitespace-nowrap shadow-sm ${
+                          isCompleted 
+                            ? 'bg-muted text-muted-foreground hover:bg-muted/70 border border-border' 
+                            : 'bg-primary text-primary-foreground hover:opacity-90'
+                        }`}
+                      >
+                        {isMarking === game.id ? (
+                           <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        ) : isCompleted ? (
+                           <CheckCircle2 className="w-4 h-4 mr-2" />
+                        ) : (
+                           <CheckCircle2 className="w-4 h-4 mr-2" />
+                        )}
+                        <span>{isCompleted ? 'Undo' : 'Mark Done'}</span>
                       </button>
                     </div>
-                    
-                    <a 
-                      href={game.global_games?.url || ""}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      onClick={(e) => e.stopPropagation()}
-                      className="flex flex-1 items-center justify-center py-2 px-3 sm:py-2.5 sm:px-4 bg-background hover:bg-muted border border-border text-foreground font-bold rounded-lg sm:rounded-xl transition-colors text-sm shadow-sm relative"
-                    >
-                      <Play className="w-4 h-4 sm:mr-2" />
-                      <span className="hidden sm:inline">Play</span>
-                    </a>
-
-                    <button
-                      onClick={(e) => handleMarkCompleted(e, game.id)}
-                      disabled={isMarking === game.id}
-                      className={`relative flex items-center justify-center py-2 px-3 sm:py-2.5 sm:px-4 sm:flex-1 font-bold rounded-lg sm:rounded-xl transition-colors disabled:opacity-50 text-sm whitespace-nowrap shadow-sm ${
-                        isCompleted 
-                          ? 'bg-muted text-muted-foreground hover:bg-muted/70 border border-border' 
-                          : 'bg-primary text-primary-foreground hover:opacity-90'
-                      }`}
-                    >
-                      {isMarking === game.id ? (
-                         <Loader2 className="w-4 h-4 sm:mr-2 animate-spin" />
-                      ) : isCompleted ? (
-                         <CheckCircle2 className="w-4 h-4 sm:mr-2" />
-                      ) : (
-                         <CheckCircle2 className="w-4 h-4 sm:mr-2" />
-                      )}
-                      <span className="hidden sm:inline">{isCompleted ? 'Undo' : 'Mark Done'}</span>
-                      <span className="sm:hidden ml-1.5">{isCompleted ? 'Undo' : 'Done'}</span>
-                    </button>
-                  </div>
                 </div>
               );
             })}
