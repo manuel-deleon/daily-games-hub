@@ -159,7 +159,7 @@ export function Friends() {
     setIsSearching(true);
     const { data, error } = await supabase
       .from('profiles')
-      .select('*, global_games(*)')
+        .select('*')
       .ilike('username', `%${searchQuery.trim()}%`)
       .neq('id', currentUser)
       .limit(10);
