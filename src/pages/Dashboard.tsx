@@ -220,6 +220,7 @@ export function Dashboard() {
       if (!error) {
         await loadData();
         window.dispatchEvent(new Event('profileUpdated'));
+        setShowShareModal(gameId);
       } else {
         console.error("Error undoing:", error); alert("Error deshaciendo progreso: " + error.message);
       }
@@ -232,6 +233,7 @@ export function Dashboard() {
       if (!error) {
         await loadData();
         window.dispatchEvent(new Event('profileUpdated'));
+        setShowShareModal(gameId);
       } else {
         console.error("Error marcando completado:", error); alert("Error guardando progreso: " + error.message);
       }
