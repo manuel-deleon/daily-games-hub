@@ -388,7 +388,7 @@ return (
                           </h4>
                         </div>
                       </div>
-                      <div className="flex items-center text-orange-500 font-extrabold bg-orange-500/10 px-3 py-1.5 rounded-xl">
+                      <div className="flex items-center text-[#D4A336] font-extrabold bg-[#D4A336]/10 px-3 py-1.5 rounded-xl">
                         <Flame className="w-5 h-5 mr-1.5" />
                         {user.global_streak}
                       </div>
@@ -427,7 +427,7 @@ return (
                       </div>
                       <div>
                         <h4 className="font-bold text-foreground cursor-pointer hover:underline" onClick={() => openCatalog(user)}>{user.username}</h4>
-                        <div className="flex items-center text-sm text-orange-500 font-bold mt-0.5">
+                        <div className="flex items-center text-sm text-[#D4A336] font-bold mt-0.5">
                           <Flame className="w-3.5 h-3.5 mr-1" />
                           {user.global_streak} streak
                         </div>
@@ -592,7 +592,7 @@ return (
                   <div className="flex items-center space-x-2">
                     <span className="text-sm text-muted-foreground font-medium">Daily games catalog</span>
                     <span className="text-muted-foreground">•</span>
-                    <span className="text-sm font-bold text-orange-500 flex items-center">
+                    <span className="text-sm font-bold text-[#D4A336] flex items-center">
                       <Flame className="w-3.5 h-3.5 mr-1" />
                       PB: {selectedUser.highest_streak || selectedUser.global_streak || 0}
                     </span>
@@ -627,7 +627,7 @@ return (
                           </div>
                           
                           <div className="flex items-center text-white/90 bg-black/20 px-2 py-1 rounded-lg text-xs font-bold backdrop-blur-sm" title="Streak in this game">
-                            <Flame className="w-3.5 h-3.5 mr-1 text-orange-300" />
+                            <Flame className="w-3.5 h-3.5 mr-1 text-[#D4A336]" />
                             {game.current_streak}
                           </div>
                         </div>
