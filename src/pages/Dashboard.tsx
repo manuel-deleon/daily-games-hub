@@ -220,7 +220,6 @@ export function Dashboard() {
       if (!error) {
         await loadData();
         window.dispatchEvent(new Event('profileUpdated'));
-        setShowShareModal(gameId);
       } else {
         console.error("Error undoing:", error); alert("Error deshaciendo progreso: " + error.message);
       }
