@@ -12,8 +12,8 @@ export default defineConfig({
       injectRegister: 'auto',
       includeAssets: ['pwa-192x192.png', 'pwa-512x512.png'],
       manifest: {
-        name: 'Daily Games Hub',
-        short_name: 'DailyPlay',
+        name: 'DailyHub',
+        short_name: 'DailyHub',
         description: 'Your social hub for daily web games like Wordle and Connections.',
         theme_color: '#709176', // Dusty Olive
         background_color: '#fdfdfd', // White
