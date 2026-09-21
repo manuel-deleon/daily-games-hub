@@ -7,6 +7,8 @@ import { Dashboard } from './pages/Dashboard';
 import { Profile } from './pages/Profile';
 import { Friends } from './pages/Friends';
 import { Admin } from './pages/Admin';
+import { Suggestions } from './pages/Suggestions';
+import { Updates } from './pages/Updates';
 import type { Session } from '@supabase/supabase-js';
 import { useTheme } from './hooks/useTheme';
 
@@ -63,6 +65,8 @@ function App() {
             <Route path="profile" element={<Profile />} />
             <Route path="friends" element={<Friends />} />
             <Route path="admin" element={<Admin />} />
+            <Route path="suggestions" element={<Suggestions />} />
+            <Route path="updates" element={<Updates />} />
           </Route>
 
           {/* Catch all para URLs inexistentes */}

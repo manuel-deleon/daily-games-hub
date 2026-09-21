@@ -97,6 +97,12 @@ export function Admin() {
     else { setEditingGame(null); loadAdminData(); }
   };
 
+
+  const toggleRecommended = async (gameId: string, currentVal: boolean) => {
+    await supabase.from('global_games').update({ is_recommended: !currentVal }).eq('id', gameId);
+    loadAdminData();
+  };
+
   const handleDeleteGame = async (id: string) => {
     if (confirm('Are you sure you want to permanently delete this global game? All users will lose it.')) {
       const { error } = await supabase.from('global_games').delete().eq('id', id);
@@ -193,8 +199,16 @@ export function Admin() {
                   <tr key={game.id} className="hover:bg-muted/30 transition-colors">
                     <td className="p-4"><img src={game.logo_url || 'https://via.placeholder.com/40'} alt="logo" className="w-10 h-10 rounded-lg object-cover" /></td>
                     <td className="p-4 font-bold">{game.name}</td>
-                    <td className="p-4 text-sm text-muted-foreground truncate max-w-[200px]">{game.url}</td>
-                    <td className="p-4 text-right space-x-2">
+                      <td className="p-4 text-sm text-muted-foreground truncate max-w-[200px]">{game.url}</td>
+                      <td className="p-4 text-center">
+                        <input 
+                          type="checkbox" 
+                          checked={game.is_recommended || false} 
+                          onChange={() => toggleRecommended(game.id, game.is_recommended)}
+                          className="w-5 h-5 accent-primary cursor-pointer"
+                        />
+                      </td>
+                      <td className="p-4 text-right space-x-2">
                       <button onClick={() => setEditingGame(game)} className="p-2 bg-background border border-border rounded-lg hover:bg-muted"><Edit className="w-4 h-4" /></button>
                       <button onClick={() => handleDeleteGame(game.id)} className="p-2 bg-destructive/10 text-destructive border border-destructive/20 rounded-lg hover:bg-destructive hover:text-white"><Trash2 className="w-4 h-4" /></button>
                     </td>

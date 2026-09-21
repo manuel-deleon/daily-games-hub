@@ -29,6 +29,7 @@ export function Dashboard() {
 
   
   const [games, setGames] = useState<Game[]>([]);
+  const [recommendedGames, setRecommendedGames] = useState<any[]>([]);
   const [completedTodayIds, setCompletedTodayIds] = useState<Set<string>>(new Set());
   const [isLoading, setIsLoading] = useState(true);
   const [isMarking, setIsMarking] = useState<string | null>(null);
@@ -146,6 +147,9 @@ export function Dashboard() {
 
     // Fetch Profile
     
+
+    const { data: recsData } = await supabase.from('global_games').select('*').eq('is_recommended', true);
+    if (recsData) setRecommendedGames(recsData);
 
     // Fetch Games
     const { data: gamesData, error: gamesError } = await supabase
@@ -617,45 +621,34 @@ return (
             )}
           </div>
           <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-            {[
-              { name: 'Wordle', url: 'https://www.nytimes.com/games/wordle/index.html', icon: 'https://www.nytimes.com/games-assets/v2/metadata/wordle-apple-touch-icon.png' },
-              { name: 'Connections', url: 'https://www.nytimes.com/games/connections', icon: 'https://www.nytimes.com/games-assets/v2/metadata/connections-apple-touch-icon.png' },
-              { name: 'Strands', url: 'https://www.nytimes.com/games/strands', icon: 'https://www.nytimes.com/games-assets/v2/metadata/strands-apple-touch-icon.png' }
-            ].map((rec) => {
-              const alreadyHasIt = games.some(g => (g.custom_name || g.global_games?.name) === rec.name);
+            {recommendedGames.map((rec) => {
+              const alreadyHasIt = games.some(g => g.global_game_id === rec.id);
               if (alreadyHasIt) return null;
               
               return (
-                <div key={rec.name} className="flex flex-col p-4 rounded-xl border border-border bg-card shadow-sm hover:shadow-md transition-shadow group">
+                <div key={rec.id} className="flex flex-col p-4 rounded-xl border border-border bg-card shadow-sm hover:shadow-md transition-shadow group">
                   <div className="flex items-center space-x-3 mb-4">
-                    <img src={rec.icon} alt={rec.name} className="w-10 h-10 rounded-xl object-cover shadow-sm flex-shrink-0 border border-border" />
+                    <img src={rec.logo_url} alt={rec.name} className="w-10 h-10 rounded-xl object-cover shadow-sm flex-shrink-0 border border-border" />
                     <span className="font-bold text-foreground truncate">{rec.name}</span>
                   </div>
                   <button
-                    disabled={addingRec === rec.name}
+                    disabled={addingRec === rec.id}
                     onClick={async () => {
-                      setAddingRec(rec.name);
-                      try {
-                        const { data: { session } } = await supabase.auth.getSession();
-                        if (session) {
-                          const { data: existingGlobal } = await supabase.from('global_games').select('id').eq('url', rec.url).maybeSingle();
-                          let gId = existingGlobal?.id;
-                          if (!gId) {
-                              const { data: newG } = await supabase.from('global_games').insert({ url: rec.url, name: rec.name, logo_url: rec.icon, color: '#333333' }).select().single();
-                              gId = newG.id;
-                          }
-                          await supabase.from('user_games').insert({ user_id: session.user.id, global_game_id: gId });
-
-                          await loadData();
-        window.dispatchEvent(new Event('profileUpdated'));
-                        }
-                      } finally {
-                        setAddingRec(null);
-                      }
+                      setAddingRec(rec.id);
+try {
+  const { data: { session } } = await supabase.auth.getSession();
+  if (session) {
+    await supabase.from('user_games').insert({ user_id: session.user.id, global_game_id: rec.id });
+    await loadData();
+    window.dispatchEvent(new Event('profileUpdated'));
+  }
+} finally {
+  setAddingRec(null);
+}
                     }}
                     className="mt-auto flex items-center justify-center py-2 px-3 bg-primary text-primary-foreground hover:opacity-90 rounded-lg text-sm font-bold transition-colors w-full shadow-sm disabled:opacity-50"
                   >
-                    {addingRec === rec.name ? <Loader2 className="w-4 h-4 mr-1.5 animate-spin" /> : <Plus className="w-4 h-4 mr-1.5" />}
+                    {addingRec === rec.id ? <Loader2 className="w-4 h-4 mr-1.5 animate-spin" /> : <Plus className="w-4 h-4 mr-1.5" />}
                     Add
                   </button>
                 </div>

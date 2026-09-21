@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Outlet, useNavigate, Link, useLocation } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
-import { Flame, User as UserIcon, Users, Bell, Home, Shield } from 'lucide-react';
+import { Flame, User as UserIcon, Users, Bell, Home, Shield, Lightbulb, Megaphone } from 'lucide-react';
 import type { Profile } from '../types';
 
 
@@ -142,7 +142,35 @@ export function Layout() {
                 <Users className="w-4 h-4" />
                 <span>{'Community'}</span>
               </Link>
-              {profile?.is_admin && (
+              <Link 
+                to="/suggestions" 
+                className={`font-semibold flex items-center space-x-2 transition-colors ${isActive('/suggestions') ? 'text-primary' : 'text-muted-foreground hover:text-foreground'}`}
+              >
+                <Lightbulb className="w-4 h-4" />
+                <span>{'Suggestions'}</span>
+              </Link>
+              <Link 
+                to="/updates" 
+                className={`font-semibold flex items-center space-x-2 transition-colors ${isActive('/updates') ? 'text-primary' : 'text-muted-foreground hover:text-foreground'}`}
+              >
+                <Megaphone className="w-4 h-4" />
+                <span>{'Updates'}</span>
+              </Link>
+              <Link 
+            to="/suggestions" 
+            className={`flex flex-col items-center justify-center w-full h-full space-y-1 ${isActive('/suggestions') ? 'text-primary' : 'text-muted-foreground hover:text-foreground'}`}
+          >
+            <Lightbulb className="w-5 h-5" />
+            <span className="text-[10px] font-semibold">{'Ideas'}</span>
+          </Link>
+          <Link 
+            to="/updates" 
+            className={`flex flex-col items-center justify-center w-full h-full space-y-1 ${isActive('/updates') ? 'text-primary' : 'text-muted-foreground hover:text-foreground'}`}
+          >
+            <Megaphone className="w-5 h-5" />
+            <span className="text-[10px] font-semibold">{'Updates'}</span>
+          </Link>
+          {profile?.is_admin && (
                 <Link 
                   to="/admin" 
                   className={`font-semibold flex items-center space-x-2 transition-colors ${isActive('/admin') ? 'text-primary' : 'text-muted-foreground hover:text-foreground'}`}
@@ -206,6 +234,20 @@ export function Layout() {
           >
             <UserIcon className="w-5 h-5" />
             <span className="text-[10px] font-semibold">{'Profile'}</span>
+          </Link>
+          <Link 
+            to="/suggestions" 
+            className={`flex flex-col items-center justify-center w-full h-full space-y-1 ${isActive('/suggestions') ? 'text-primary' : 'text-muted-foreground hover:text-foreground'}`}
+          >
+            <Lightbulb className="w-5 h-5" />
+            <span className="text-[10px] font-semibold">{'Ideas'}</span>
+          </Link>
+          <Link 
+            to="/updates" 
+            className={`flex flex-col items-center justify-center w-full h-full space-y-1 ${isActive('/updates') ? 'text-primary' : 'text-muted-foreground hover:text-foreground'}`}
+          >
+            <Megaphone className="w-5 h-5" />
+            <span className="text-[10px] font-semibold">{'Updates'}</span>
           </Link>
           {profile?.is_admin && (
             <Link 
