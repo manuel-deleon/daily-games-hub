@@ -32,6 +32,26 @@ export function Dashboard() {
   const [completedTodayIds, setCompletedTodayIds] = useState<Set<string>>(new Set());
   const [isLoading, setIsLoading] = useState(true);
   const [isMarking, setIsMarking] = useState<string | null>(null);
+  const [selectedHistoryGame, setSelectedHistoryGame] = useState<Game | null>(null);
+  const [historyProgress, setHistoryProgress] = useState<{ completed_date: string, share_text: string | null }[]>([]);
+  const [showShareModal, setShowShareModal] = useState<string | null>(null);
+  const [shareText, setShareText] = useState("");
+  const [isSavingShare, setIsSavingShare] = useState(false);
+
+  const openHistory = async (game: Game) => {
+    setSelectedHistoryGame(game);
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) return;
+    const { data } = await supabase
+      .from('daily_progress')
+      .select('completed_date, share_text')
+      .eq('user_id', session.user.id)
+      .eq('game_id', game.id)
+      .order('completed_date', { ascending: false });
+    
+    setHistoryProgress(data || []);
+  };
+
 
   // Add/Edit Game Modal State
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -221,6 +241,23 @@ export function Dashboard() {
   };
 
   
+  const handleSaveShareText = async () => {
+    if (!showShareModal) return;
+    setIsSavingShare(true);
+    const { data: { session } } = await supabase.auth.getSession();
+    if (session) {
+      const today = getLocalDateStr(new Date());
+      await supabase.from('daily_progress')
+        .update({ share_text: shareText })
+        .eq('user_id', session.user.id)
+        .eq('game_id', showShareModal)
+        .eq('completed_date', today);
+    }
+    setIsSavingShare(false);
+    setShowShareModal(null);
+    setShareText("");
+  };
+
   // Auto-extract name from URL
   const handleUrlChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const urlStr = e.target.value;
@@ -468,16 +505,10 @@ return (
               return (
                 <div 
                   key={game.id}
-                  className="group relative flex flex-row sm:flex-col items-center sm:items-start justify-between p-4 sm:p-5 rounded-xl sm:rounded-2xl border border-border bg-card hover:bg-muted/30 transition-all sm:hover:border-primary/50 gap-4"
+                  onClick={() => openHistory(game)}
+                  className="group cursor-pointer relative flex flex-row sm:flex-col items-center sm:items-start justify-between p-4 sm:p-5 rounded-xl sm:rounded-2xl border border-border bg-card hover:bg-muted/30 transition-all sm:hover:border-primary/50 gap-4"
                 >
-                  {/* Invisible Link covering the whole card for Play */}
-                  <a 
-                    href={game.global_games?.url || ""}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="absolute inset-0 z-0 rounded-xl sm:rounded-2xl"
-                    aria-label={`Play ${game.custom_name || game.global_games?.name}`}
-                  ></a>
+                  
 
                   {/* Absolute Edit/Delete Menu (Desktop hover) */}
                   <div className="hidden sm:flex absolute top-3 right-3 items-center space-x-1 opacity-0 group-hover:opacity-100 transition-opacity z-20">
@@ -489,7 +520,7 @@ return (
                     </button>
                   </div>
 
-                  <div className="flex items-center space-x-4 min-w-0 flex-1 w-full z-10 pointer-events-none">
+                  <div className="flex items-center space-x-4 min-w-0 flex-1 w-full z-10">
                     {getGameLogo(game) ? (
                       <img src={getGameLogo(game)} alt={(game.custom_name || game.global_games?.name || "")} className="w-12 h-12 sm:w-14 sm:h-14 rounded-xl object-cover shadow-sm border border-border flex-shrink-0" />
                     ) : (
@@ -541,10 +572,11 @@ return (
                       href={game.global_games?.url || ""}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="hidden sm:flex flex-1 items-center justify-center py-2.5 px-4 bg-background hover:bg-muted border border-border text-foreground font-bold rounded-xl transition-colors text-sm shadow-sm relative"
+                      onClick={(e) => e.stopPropagation()}
+                      className="flex flex-1 items-center justify-center py-2 px-3 sm:py-2.5 sm:px-4 bg-background hover:bg-muted border border-border text-foreground font-bold rounded-lg sm:rounded-xl transition-colors text-sm shadow-sm relative"
                     >
-                      <Play className="w-4 h-4 mr-2" />
-                      Play
+                      <Play className="w-4 h-4 sm:mr-2" />
+                      <span className="hidden sm:inline">Play</span>
                     </a>
 
                     <button
@@ -741,6 +773,112 @@ return (
           </div>
         </div>
       )}
+
+      {/* Share Modal */}
+      {showShareModal && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm">
+          <div className="bg-card w-full max-w-md rounded-3xl shadow-2xl border border-border overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+            <div className="flex justify-between items-center p-6 border-b border-border bg-muted/30">
+              <h3 className="text-xl font-extrabold text-foreground tracking-tight">Game Completed!</h3>
+              <button 
+                onClick={() => setShowShareModal(null)}
+                className="text-muted-foreground hover:text-foreground transition-colors bg-background p-1.5 rounded-full border border-border shadow-sm"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            
+            <div className="p-6 space-y-5">
+              <div className="space-y-2">
+                <label className="text-sm font-bold text-foreground">Paste your results (Optional)</label>
+                <textarea
+                  placeholder="e.g. Wordle 1,024 3/6
+
+⬛🟨⬛⬛🟩
+🟩🟩🟩🟩🟩"
+                  value={shareText}
+                  onChange={(e) => setShareText(e.target.value)}
+                  className="w-full px-4 py-3 border bg-background border-border rounded-xl text-foreground focus:outline-none focus:ring-2 focus:ring-primary shadow-sm min-h-[120px] resize-none"
+                />
+                <p className="text-xs text-muted-foreground">Share your Wordle or Connections emojis to keep track of your history!</p>
+              </div>
+
+              <div className="flex justify-end gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowShareModal(null)}
+                  className="px-5 py-2.5 text-sm font-bold text-foreground bg-background border border-border hover:bg-muted rounded-xl transition-colors shadow-sm"
+                >
+                  Skip
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSaveShareText}
+                  disabled={isSavingShare}
+                  className="flex items-center justify-center min-w-[120px] px-5 py-2.5 text-sm font-bold text-primary-foreground bg-primary hover:opacity-90 rounded-xl transition-colors disabled:opacity-50 shadow-sm"
+                >
+                  {isSavingShare ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Save'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* History Modal */}
+      {selectedHistoryGame && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm" onClick={() => setSelectedHistoryGame(null)}>
+          <div className="bg-card w-full max-w-lg max-h-[85vh] rounded-3xl shadow-2xl border border-border flex flex-col animate-in fade-in zoom-in-95 duration-200" onClick={e => e.stopPropagation()}>
+            <div className="flex justify-between items-center p-6 border-b border-border bg-muted/30">
+              <div className="flex items-center space-x-3">
+                {getGameLogo(selectedHistoryGame) ? (
+                  <img src={getGameLogo(selectedHistoryGame)} alt="" className="w-10 h-10 rounded-lg object-cover shadow-sm border border-border" />
+                ) : (
+                  <Gamepad2 className="w-8 h-8 text-muted-foreground" />
+                )}
+                <div>
+                  <h3 className="text-xl font-extrabold text-foreground leading-none mb-1">
+                    {(selectedHistoryGame.custom_name || selectedHistoryGame.global_games?.name || "")}
+                  </h3>
+                  <p className="text-sm text-muted-foreground font-medium">Your Play History</p>
+                </div>
+              </div>
+              <button 
+                onClick={() => setSelectedHistoryGame(null)}
+                className="text-muted-foreground hover:text-foreground transition-colors bg-background p-1.5 rounded-full border border-border shadow-sm"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            
+            <div className="p-6 overflow-y-auto flex-1 space-y-4">
+              {historyProgress.length === 0 ? (
+                <div className="text-center py-12">
+                  <Circle className="w-12 h-12 text-muted-foreground mx-auto mb-3 opacity-30" />
+                  <p className="text-muted-foreground font-medium">You haven't played this game yet.</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {historyProgress.map((prog, i) => (
+                    <div key={i} className="p-4 rounded-xl border border-border bg-muted/30 flex flex-col space-y-3">
+                      <div className="flex items-center space-x-2 text-sm font-bold text-foreground">
+                        <CheckCircle2 className="w-4 h-4 text-primary" />
+                        <span>{new Date(prog.completed_date + 'T00:00:00').toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })}</span>
+                      </div>
+                      {prog.share_text && (
+                        <div className="bg-background border border-border rounded-lg p-3 text-sm whitespace-pre-wrap font-mono text-muted-foreground">
+                          {prog.share_text}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }
