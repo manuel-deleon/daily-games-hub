@@ -161,7 +161,7 @@ export function Updates() {
                         {new Date(update.created_at).toLocaleDateString()}
                       </div>
                     </div>
-                    <h2 className="text-2xl font-black text-foreground">{update.title}</h2>
+                    <h2 className="text-2xl font-black text-foreground break-words [word-break:break-word]">{update.title}</h2>
                   </div>
                   
                   {profile?.is_admin && (
@@ -172,7 +172,7 @@ export function Updates() {
                   )}
                 </div>
                 
-                <div className="prose prose-sm sm:prose-base dark:prose-invert max-w-none prose-p:leading-relaxed prose-li:my-1 text-muted-foreground whitespace-pre-wrap">
+                <div className="prose prose-sm sm:prose-base dark:prose-invert max-w-none prose-p:leading-relaxed prose-li:my-1 text-muted-foreground whitespace-pre-wrap break-words [word-break:break-word]">
                   {update.content}
                 </div>
               </div>

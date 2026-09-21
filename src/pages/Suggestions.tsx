@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
-import { Lightbulb, ThumbsUp, ThumbsDown, MessageSquare, Plus, Loader2, Filter } from 'lucide-react';
+import { Lightbulb, ThumbsUp, ThumbsDown, MessageSquare, Plus, Loader2, Filter, Trash2 } from 'lucide-react';
 import type { Profile } from '../types';
 
 export function Suggestions() {
@@ -91,6 +91,12 @@ export function Suggestions() {
     }
   };
 
+  const handleDeleteSuggestion = async (suggestionId: string) => {
+    if (!confirm('Are you sure you want to delete this suggestion?')) return;
+    await supabase.from('suggestions').delete().eq('id', suggestionId);
+    await loadData();
+  };
+
   const handleStatusChange = async (suggestionId: string, status: string) => {
     if (!profile?.is_admin) return;
     await supabase.from('suggestions').update({ status }).eq('id', suggestionId);
@@ -99,9 +105,9 @@ export function Suggestions() {
   
   const getStatusBadge = (status: string) => {
     switch(status) {
-      case 'working': return <span className="bg-yellow-500/20 text-yellow-600 px-2.5 py-0.5 rounded-full text-xs font-bold border border-yellow-500/30">Working on it</span>;
-      case 'implemented': return <span className="bg-green-500/20 text-green-600 px-2.5 py-0.5 rounded-full text-xs font-bold border border-green-500/30">Implemented</span>;
-      case 'rejected': return <span className="bg-red-500/20 text-red-600 px-2.5 py-0.5 rounded-full text-xs font-bold border border-red-500/30">Rejected</span>;
+      case 'working': return <span className="px-2.5 py-0.5 rounded-full text-xs font-bold border" style={{ backgroundColor: '#d4a33633', color: '#d4a336', borderColor: '#d4a33666' }}>Working on it</span>;
+      case 'implemented': return <span className="px-2.5 py-0.5 rounded-full text-xs font-bold border" style={{ backgroundColor: '#70917633', color: '#709176', borderColor: '#70917666' }}>Implemented</span>;
+      case 'rejected': return <span className="px-2.5 py-0.5 rounded-full text-xs font-bold border" style={{ backgroundColor: '#C0575733', color: '#C05757', borderColor: '#C0575766' }}>Rejected</span>;
       default: return <span className="bg-muted text-muted-foreground px-2.5 py-0.5 rounded-full text-xs font-bold border border-border">Pending</span>;
     }
   };
@@ -207,10 +213,10 @@ export function Suggestions() {
               
               <div className="flex-1 min-w-0 flex flex-col">
                 <div className="flex items-start justify-between gap-4 mb-1">
-                  <h3 className="text-lg font-bold text-foreground break-words">{s.title}</h3>
+                  <h3 className="text-lg font-bold text-foreground break-words [word-break:break-word]">{s.title}</h3>
                   <div className="shrink-0">{getStatusBadge(s.status)}</div>
                 </div>
-                <p className="text-muted-foreground text-sm mb-3 whitespace-pre-wrap">{s.description}</p>
+                <p className="text-muted-foreground text-sm mb-3 whitespace-pre-wrap break-words [word-break:break-word]">{s.description}</p>
                 <div className="flex items-center text-xs text-muted-foreground/60 font-medium">
                   <span className="truncate">By {s.username || 'Anonymous'}</span>
                   <span className="mx-2">•</span>
@@ -218,18 +224,29 @@ export function Suggestions() {
                 </div>
               </div>
 
-              {profile?.is_admin && (
-                <div className="flex sm:flex-col gap-2 shrink-0 border-t sm:border-t-0 sm:border-l border-border pt-4 sm:pt-0 sm:pl-4 mt-4 sm:mt-0">
-                  <select 
-                    value={s.status} 
-                    onChange={e => handleStatusChange(s.id, e.target.value)}
-                    className="text-xs font-bold px-2 py-1.5 bg-background border border-border rounded-lg outline-none cursor-pointer"
-                  >
-                    <option value="pending">Pending</option>
-                    <option value="working">Working</option>
-                    <option value="implemented">Implemented</option>
-                    <option value="rejected">Rejected</option>
-                  </select>
+              {(profile?.is_admin || profile?.id === s.user_id) && (
+                <div className="flex sm:flex-col gap-2 shrink-0 border-t sm:border-t-0 sm:border-l border-border pt-4 sm:pt-0 sm:pl-4 mt-4 sm:mt-0 items-center sm:items-start justify-end">
+                  {profile?.is_admin && (
+                    <select 
+                      value={s.status} 
+                      onChange={e => handleStatusChange(s.id, e.target.value)}
+                      className="text-xs font-bold px-2 py-1.5 bg-background border border-border rounded-lg outline-none cursor-pointer"
+                    >
+                      <option value="pending">Pending</option>
+                      <option value="working">Working</option>
+                      <option value="implemented">Implemented</option>
+                      <option value="rejected">Rejected</option>
+                    </select>
+                  )}
+                  {(profile?.id === s.user_id || profile?.is_admin) && (
+                    <button 
+                      onClick={() => handleDeleteSuggestion(s.id)}
+                      className="p-1.5 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-lg transition-colors ml-auto sm:ml-0"
+                      title="Delete suggestion"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  )}
                 </div>
               )}
             </div>
