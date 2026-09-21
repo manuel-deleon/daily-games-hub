@@ -26,7 +26,23 @@ export function Suggestions() {
 
     // Load suggestions
     const { data: sugData } = await supabase.from('suggestions_with_votes').select('*').order('score', { ascending: false }).order('created_at', { ascending: false });
-    if (sugData) setSuggestions(sugData);
+      if (sugData) {
+        const statusWeight: Record<string, number> = {
+          'pending': 1,
+          'working': 2,
+          'implemented': 3,
+          'rejected': 4
+        };
+        
+        sugData.sort((a, b) => {
+          const weightA = statusWeight[a.status] || 5;
+          const weightB = statusWeight[b.status] || 5;
+          if (weightA !== weightB) return weightA - weightB;
+          if (b.score !== a.score) return b.score - a.score;
+          return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+        });
+        setSuggestions(sugData);
+      }
     
     // Load my votes
     const { data: voteData } = await supabase.from('suggestion_votes').select('suggestion_id, vote_type').eq('user_id', session.user.id);

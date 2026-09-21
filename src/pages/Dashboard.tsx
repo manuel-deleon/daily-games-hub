@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
-import { Flame, Play, CheckCircle2, Circle, Plus, X, Loader2, Pencil, Trash2, Gamepad2, Upload } from 'lucide-react';
+import { Flame, Play, CheckCircle2, Circle, Plus, X, Loader2, Pencil, Trash2, Gamepad2, Upload, Pin } from 'lucide-react';
 import type { Game } from '../types';
 
 export function Dashboard() {
@@ -28,6 +28,7 @@ export function Dashboard() {
   };
 
   
+  const isPWA = window.matchMedia('(display-mode: standalone)').matches || ('standalone' in navigator && (navigator as any).standalone);
   const [games, setGames] = useState<Game[]>([]);
   const [recommendedGames, setRecommendedGames] = useState<any[]>([]);
   const [allGlobalGames, setAllGlobalGames] = useState<any[]>([]);
@@ -128,6 +129,24 @@ export function Dashboard() {
       setAddError(err.message || 'Error updating game.');
     } finally {
       setIsAdding(false);
+    }
+  };
+
+  const handleTogglePin = async (game: any) => {
+    // Optimistic UI update
+    const newPinnedStatus = !game.is_pinned;
+    setGames(prev => {
+      const updated = prev.map(g => g.id === game.id ? { ...g, is_pinned: newPinnedStatus } : g);
+      return updated.sort((a: any, b: any) => {
+        if (a.is_pinned && !b.is_pinned) return -1;
+        if (!a.is_pinned && b.is_pinned) return 1;
+        return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+      });
+    });
+
+    const { error } = await supabase.from('user_games').update({ is_pinned: newPinnedStatus }).eq('id', game.id);
+    if (error) {
+      await loadData(); // Revert on error
     }
   };
 
@@ -520,8 +539,11 @@ return (
                   
 
                   {/* Absolute Edit/Delete Menu (Desktop hover) */}
-                  <div className="flex absolute top-3 right-3 items-center space-x-1 sm:opacity-0 group-hover:opacity-100 transition-opacity z-20">
-                    <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); openEditModal(game); }} className="p-1.5 text-muted-foreground hover:text-foreground transition-colors rounded-md hover:bg-background shadow-sm border border-border bg-card relative" title="Edit">
+                    <div className={`flex absolute top-3 right-3 items-center space-x-1 transition-opacity z-20 ${game.is_pinned ? 'opacity-100' : 'sm:opacity-0 group-hover:opacity-100'}`}>
+                      <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleTogglePin(game); }} className={`p-1.5 transition-all rounded-md hover:bg-background active:scale-90 shadow-sm border border-border bg-card relative ${game.is_pinned ? 'text-primary bg-primary/5 border-primary/20' : 'text-muted-foreground hover:text-foreground'}`} title={game.is_pinned ? 'Unpin' : 'Pin'}>
+                        <Pin className="w-3.5 h-3.5" />
+                      </button>
+                      <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); openEditModal(game); }} className="p-1.5 text-muted-foreground hover:text-foreground transition-colors rounded-md hover:bg-background shadow-sm border border-border bg-card relative" title="Edit">
                       <Pencil className="w-3.5 h-3.5" />
                     </button>
                     <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleDeleteGame(game); }} className="p-1.5 text-muted-foreground hover:text-destructive transition-colors rounded-md hover:bg-destructive/10 shadow-sm border border-border bg-card relative" title="Delete">
@@ -568,8 +590,8 @@ return (
                     <div className="grid grid-cols-2 gap-2 w-full mt-2 z-10 relative">
                       <a 
                         href={game.global_games?.url || ""}
-                        target="_blank"
-                        rel="noopener noreferrer"
+                        target={isPWA ? '_self' : '_blank'}
+                        rel={isPWA ? '' : 'noopener noreferrer'}
                         onClick={(e) => e.stopPropagation()}
                         className="flex items-center justify-center py-2.5 px-4 bg-background hover:bg-muted border border-border text-foreground font-bold rounded-xl transition-colors text-sm shadow-sm relative"
                       >
