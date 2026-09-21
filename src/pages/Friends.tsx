@@ -122,7 +122,7 @@ export function Friends() {
       if (!currentUser) return;
       setIsLoadingRanking(true);
       
-      let query = supabase.from('profiles').select('*, global_games(*)');
+      let query = supabase.from('profiles').select('*');
       
       if (rankingScope === 'friends' && followingIdsList.length > 0) {
         query = query.in('id', followingIdsList);
