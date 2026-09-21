@@ -4,9 +4,12 @@ import { Flame, Play, CheckCircle2, Circle, Plus, X, Loader2, Pencil, Trash2, Ga
 import type { Game } from '../types';
 
 export function Dashboard() {
-  // Helper for consistent date string matching DB (UTC)
+  // Helper for consistent local date string
   const getLocalDateStr = (d: Date) => {
-    return d.toISOString().split('T')[0];
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
   };
   // Helper to get logo or favicon
   const getGameLogo = (game: any) => {
@@ -151,7 +154,7 @@ export function Dashboard() {
 
     // Fetch Weekly Progress
     const weekAgo = new Date();
-    weekAgo.setUTCDate(weekAgo.getUTCDate() - 7);
+    weekAgo.setDate(weekAgo.getDate() - 7);
     const weekAgoStr = getLocalDateStr(weekAgo);
 
     const { data: weekData } = await supabase
@@ -380,11 +383,11 @@ return (
   };
 
   
-  const todayIndex = (today.getUTCDay() + 6) % 7; // Monday = 0, Sunday = 6
+  const todayIndex = (today.getDay() + 6) % 7; // Monday = 0, Sunday = 6
   
   const getDayStatus = (offsetFromToday: number) => {
     const d = new Date();
-    d.setUTCDate(d.getUTCDate() - offsetFromToday);
+    d.setDate(d.getDate() - offsetFromToday);
     const dStr = getLocalDateStr(d);
     const completedCount = weeklyProgress[dStr] || 0;
     
@@ -427,7 +430,7 @@ return (
                             ? 'bg-transparent text-muted-foreground/30 border border-border/50'
                             : 'bg-muted text-muted-foreground'
                     }`}>
-                    {( () => { const d = new Date(); d.setUTCDate(d.getUTCDate() - offset); return ['S', 'M', 'T', 'W', 'T', 'F', 'S'][d.getUTCDay()]; })()}
+                    {( () => { const d = new Date(); d.setDate(d.getDate() - offset); return ['S', 'M', 'T', 'W', 'T', 'F', 'S'][d.getDay()]; })()}
                   </div>
                 );
               })}
