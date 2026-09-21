@@ -336,7 +336,7 @@ export function Profile() {
         <div className="flex items-center justify-between p-4 rounded-xl border border-border bg-background">
           <div className="flex items-center space-x-3 text-foreground">
             {theme === 'light' ? <Sun className="w-6 h-6 text-amber-500" /> : <Moon className="w-6 h-6 text-blue-400" />}
-            <span className="font-bold">Dark Mode</span>
+            <span className="font-bold">{theme === 'light' ? 'Light Mode' : 'Dark Mode'}</span>
           </div>
           <button
             onClick={toggleTheme}
