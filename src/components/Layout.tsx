@@ -213,7 +213,7 @@ export function Layout() {
 
       {/* Bottom Navigation Bar (Mobile Only) */}
       <div className="sm:hidden fixed bottom-0 left-0 right-0 z-40 bg-card border-t border-border pb-safe">
-        <div className="flex justify-around items-center h-16 px-4">
+        <div className="flex justify-around items-center h-16 px-1 sm:px-4">
           <Link 
             to="/dashboard" 
             className={`flex flex-col items-center justify-center w-full h-full space-y-1 ${isActive('/dashboard') ? 'text-primary' : 'text-muted-foreground hover:text-foreground'}`}
@@ -227,13 +227,6 @@ export function Layout() {
           >
             <Users className="w-5 h-5" />
             <span className="text-[10px] font-semibold">{'Community'}</span>
-          </Link>
-          <Link 
-            to="/profile" 
-            className={`flex flex-col items-center justify-center w-full h-full space-y-1 ${isActive('/profile') ? 'text-primary' : 'text-muted-foreground hover:text-foreground'}`}
-          >
-            <UserIcon className="w-5 h-5" />
-            <span className="text-[10px] font-semibold">{'Profile'}</span>
           </Link>
           <Link 
             to="/suggestions" 
@@ -258,6 +251,13 @@ export function Layout() {
               <span className="text-[10px] font-semibold">Admin</span>
             </Link>
           )}
+          <Link 
+            to="/profile" 
+            className={`flex flex-col items-center justify-center w-full h-full space-y-1 ${isActive('/profile') ? 'text-primary' : 'text-muted-foreground hover:text-foreground'}`}
+          >
+            <UserIcon className="w-5 h-5" />
+            <span className="text-[10px] font-semibold">{'Profile'}</span>
+          </Link>
         </div>
       </div>
 
