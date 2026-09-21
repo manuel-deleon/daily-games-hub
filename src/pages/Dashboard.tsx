@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
-import { Flame, Play, CheckCircle2, Circle, Plus, X, Loader2, Pencil, Trash2, Gamepad2, Upload } from 'lucide-react';
+import { Flame, Play, CheckCircle2, Circle, Plus, X, Loader2, Pencil, Trash2, Gamepad2, Upload, Pin } from 'lucide-react';
 import type { Game } from '../types';
 
 export function Dashboard() {
@@ -128,6 +128,13 @@ export function Dashboard() {
       setAddError(err.message || 'Error updating game.');
     } finally {
       setIsAdding(false);
+    }
+  };
+
+  const handleTogglePin = async (game: any) => {
+    const { error } = await supabase.from('user_games').update({ is_pinned: !game.is_pinned }).eq('id', game.id);
+    if (!error) {
+      await loadData();
     }
   };
 
@@ -520,8 +527,11 @@ return (
                   
 
                   {/* Absolute Edit/Delete Menu (Desktop hover) */}
-                  <div className="flex absolute top-3 right-3 items-center space-x-1 sm:opacity-0 group-hover:opacity-100 transition-opacity z-20">
-                    <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); openEditModal(game); }} className="p-1.5 text-muted-foreground hover:text-foreground transition-colors rounded-md hover:bg-background shadow-sm border border-border bg-card relative" title="Edit">
+                    <div className={`flex absolute top-3 right-3 items-center space-x-1 transition-opacity z-20 ${game.is_pinned ? 'opacity-100' : 'sm:opacity-0 group-hover:opacity-100'}`}>
+                      <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleTogglePin(game); }} className={`p-1.5 transition-colors rounded-md hover:bg-background shadow-sm border border-border bg-card relative ${game.is_pinned ? 'text-primary' : 'text-muted-foreground hover:text-foreground'}`} title={game.is_pinned ? 'Unpin' : 'Pin'}>
+                        <Pin className="w-3.5 h-3.5" />
+                      </button>
+                      <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); openEditModal(game); }} className="p-1.5 text-muted-foreground hover:text-foreground transition-colors rounded-md hover:bg-background shadow-sm border border-border bg-card relative" title="Edit">
                       <Pencil className="w-3.5 h-3.5" />
                     </button>
                     <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleDeleteGame(game); }} className="p-1.5 text-muted-foreground hover:text-destructive transition-colors rounded-md hover:bg-destructive/10 shadow-sm border border-border bg-card relative" title="Delete">
