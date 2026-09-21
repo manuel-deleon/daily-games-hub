@@ -30,6 +30,8 @@ export function Dashboard() {
   
   const [games, setGames] = useState<Game[]>([]);
   const [recommendedGames, setRecommendedGames] = useState<any[]>([]);
+  const [allGlobalGames, setAllGlobalGames] = useState<any[]>([]);
+  const [showGlobalDropdown, setShowGlobalDropdown] = useState(false);
   const [completedTodayIds, setCompletedTodayIds] = useState<Set<string>>(new Set());
   const [isLoading, setIsLoading] = useState(true);
   const [isMarking, setIsMarking] = useState<string | null>(null);
@@ -150,6 +152,8 @@ export function Dashboard() {
 
     const { data: recsData } = await supabase.from('global_games').select('*').eq('is_recommended', true);
     if (recsData) setRecommendedGames(recsData);
+    const { data: allGlobalData } = await supabase.from('global_games').select('*');
+    if (allGlobalData) setAllGlobalGames(allGlobalData);
 
     // Fetch Games
     const { data: gamesData, error: gamesError } = await supabase
@@ -677,93 +681,112 @@ try {
               </button>
             </div>
             
-            <form onSubmit={editingGame ? handleUpdateGame : handleAddGame} className="p-6 space-y-5">
-              <div className="space-y-4">
-                <div className="space-y-1.5">
-                  <label htmlFor="url" className="text-sm font-bold text-foreground">URL Link</label>
-                  <input
-                      id="url"
+            <form onSubmit={editingGame ? handleUpdateGame : handleAddGame} className="p-6 space-y-5 overflow-visible">
+                <div className="space-y-4">
+                  
+                  <div className="space-y-1.5 relative">
+                    <label htmlFor="name" className="text-sm font-bold text-foreground">Game Name</label>
+                    <input
+                      id="name"
                       type="text"
-                      inputMode="url"
                       required
-                      placeholder="e.g. minicrossword.com"
-                      value={newGameUrl}
-                      onChange={handleUrlChange}
-                      onBlur={handleUrlBlur}
+                      placeholder="e.g. Wordle, Framed..."
+                      value={newGameName}
+                      onChange={(e) => {
+                        setNewGameName(e.target.value);
+                        if (!editingGame) setShowGlobalDropdown(true);
+                      }}
+                      onFocus={() => { if (!editingGame) setShowGlobalDropdown(true); }}
+                      onBlur={() => setTimeout(() => setShowGlobalDropdown(false), 200)}
                       className="w-full px-4 py-2.5 border bg-background border-border rounded-xl text-foreground focus:outline-none focus:ring-2 focus:ring-primary shadow-sm transition-shadow"
                     />
-                </div>
-                
-                {editingGame && (
-                  <div className="space-y-1.5">
-                  <label htmlFor="name" className="text-sm font-bold text-foreground">Game Name</label>
-                  <input
-                    id="name"
-                    type="text"
-                    required
-                    placeholder="e.g. Wordle, Framed..."
-                    value={newGameName}
-                    onChange={(e) => setNewGameName(e.target.value)}
-                    className="w-full px-4 py-2.5 border bg-background border-border rounded-xl text-foreground focus:outline-none focus:ring-2 focus:ring-primary shadow-sm transition-shadow"
-                  />
-                </div>
-                  )}
-
-                {editingGame && (
-                  <div className="space-y-1.5">
-                  <label htmlFor="logo" className="text-sm font-bold text-foreground">Game Logo (Optional)</label>
-                  <div className="flex items-center justify-center w-full">
-                    <label htmlFor="logo" className="flex flex-col items-center justify-center w-full h-24 border-2 border-dashed border-border rounded-xl cursor-pointer bg-background hover:bg-muted/50 transition-colors">
-                      <div className="flex flex-col items-center justify-center pt-5 pb-6">
-                        <Upload className="w-6 h-6 text-muted-foreground mb-2" />
-                        <p className="text-xs text-muted-foreground font-medium">
-                          {logoFile ? logoFile.name : (editingGame?.custom_logo_url ? 'Upload new logo to replace' : 'Click to upload image')}
-                        </p>
+                    {showGlobalDropdown && newGameName.trim().length > 0 && allGlobalGames.filter(g => g.name.toLowerCase().includes(newGameName.toLowerCase()) && !games.some(ug => ug.global_game_id === g.id)).length > 0 && (
+                      <div className="absolute z-10 w-full mt-1 bg-card border border-border rounded-xl shadow-lg max-h-48 overflow-y-auto">
+                        {allGlobalGames.filter(g => g.name.toLowerCase().includes(newGameName.toLowerCase()) && !games.some(ug => ug.global_game_id === g.id)).map(g => (
+                          <div 
+                            key={g.id} 
+                            className="px-4 py-3 hover:bg-muted cursor-pointer flex items-center justify-between transition-colors"
+                            onClick={() => {
+                              setNewGameName(g.name);
+                              setNewGameUrl(g.url);
+                              setShowGlobalDropdown(false);
+                            }}
+                          >
+                            <div className="flex flex-col">
+                              <span className="font-bold text-foreground">{g.name}</span>
+                              <span className="text-xs text-muted-foreground truncate">{g.url}</span>
+                            </div>
+                            {g.logo_url && <img src={g.logo_url} alt="logo" className="w-6 h-6 rounded-md object-cover ml-2 shrink-0" />}
+                          </div>
+                        ))}
                       </div>
-                      <input id="logo" type="file" accept="image/*" className="hidden" onChange={(e) => {
-                        if (e.target.files && e.target.files[0]) {
-                          setLogoFile(e.target.files[0]);
-                        }
-                      }} />
-                    </label>
+                    )}
                   </div>
-                </div>
+
+                  <div className="space-y-1.5">
+                    <label htmlFor="url" className="text-sm font-bold text-foreground">
+                      {allGlobalGames.some(g => g.name.toLowerCase() === newGameName.trim().toLowerCase()) ? "URL Link (Auto-filled)" : "URL Link"}
+                    </label>
+                    <input
+                        id="url"
+                        type="text"
+                        inputMode="url"
+                        required
+                        placeholder="e.g. minicrossword.com"
+                        value={newGameUrl}
+                        onChange={handleUrlChange}
+                        onBlur={handleUrlBlur}
+                        className="w-full px-4 py-2.5 border bg-background border-border rounded-xl text-foreground focus:outline-none focus:ring-2 focus:ring-primary shadow-sm transition-shadow"
+                      />
+                  </div>
+                  
+                  {editingGame && (
+                    <div className="space-y-1.5">
+                    <label htmlFor="logo" className="text-sm font-bold text-foreground">Game Logo (Optional)</label>
+                    <div className="flex items-center justify-center w-full">
+                      <label htmlFor="logo" className="flex flex-col items-center justify-center w-full h-24 border-2 border-dashed border-border rounded-xl cursor-pointer bg-background hover:bg-muted/50 transition-colors">
+                        <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                          <Upload className="w-6 h-6 text-muted-foreground mb-2" />
+                          <p className="text-xs text-muted-foreground font-medium">
+                            {logoFile ? logoFile.name : (editingGame?.custom_logo_url ? 'Upload new logo to replace' : 'Click to upload image')}
+                          </p>
+                        </div>
+                        <input id="logo" type="file" accept="image/*" className="hidden" onChange={(e) => {
+                          if (e.target.files && e.target.files[0]) {
+                            setLogoFile(e.target.files[0]);
+                          }
+                        }} />
+                      </label>
+                    </div>
+                  </div>
                   )}
                   
-              </div>
-
-              {addError && (
-                <div className="p-3 text-sm text-destructive bg-destructive/10 border border-destructive/20 rounded-xl font-bold">
-                  {addError}
+                  <div className="space-y-1.5">
+                    <label className="text-sm font-bold text-foreground">Card Color (Optional)</label>
+                    <div className="flex gap-3">
+                      {['#D4A373', '#A3B18A', '#E0A96D', '#B5C99A', '#9B8B7B', '#8F9B93'].map(color => (
+                        <button
+                          key={color}
+                          type="button"
+                          onClick={() => setNewGameColor(color)}
+                          className={`w-8 h-8 rounded-full transition-transform ${newGameColor === color ? 'scale-110 ring-2 ring-primary ring-offset-2 ring-offset-background' : 'hover:scale-105'}`}
+                          style={{ backgroundColor: color }}
+                        />
+                      ))}
+                    </div>
+                  </div>
                 </div>
-              )}
 
-              <div className="flex justify-end gap-3 pt-4">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setIsAddModalOpen(false);
-                    setEditingGame(null);
-                  }}
-                  className="px-5 py-2.5 text-sm font-bold text-foreground bg-background border border-border hover:bg-muted rounded-xl transition-colors shadow-sm"
-                >
-                  Cancel
-                </button>
+                {addError && <p className="text-sm text-destructive bg-destructive/10 p-3 rounded-lg font-medium">{addError}</p>}
+
                 <button
                   type="submit"
                   disabled={isAdding}
-                  className="flex items-center justify-center min-w-[120px] px-5 py-2.5 text-sm font-bold text-primary-foreground bg-primary hover:opacity-90 rounded-xl transition-colors disabled:opacity-50 shadow-sm"
+                  className="w-full flex justify-center items-center py-3 bg-primary text-primary-foreground font-bold rounded-xl hover:bg-primary/90 transition-colors disabled:opacity-50"
                 >
-                  {isAdding ? (
-                    <Loader2 className="w-5 h-5 animate-spin" />
-                  ) : editingGame ? (
-                    'Update'
-                  ) : (
-                    'Save Game'
-                  )}
+                  {isAdding ? <Loader2 className="w-5 h-5 animate-spin" /> : (editingGame ? 'Save Changes' : 'Add Game')}
                 </button>
-              </div>
-            </form>
+              </form>
           </div>
         </div>
       )}
