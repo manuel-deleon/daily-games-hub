@@ -705,7 +705,7 @@ try {
                         {allGlobalGames.filter(g => g.name.toLowerCase().includes(newGameName.toLowerCase()) && !games.some(ug => ug.global_game_id === g.id)).map(g => (
                           <div 
                             key={g.id} 
-                            className="px-4 py-3 hover:bg-muted cursor-pointer flex items-center justify-between transition-colors"
+                            className="px-4 py-3 hover:bg-muted active:bg-primary/10 active:scale-[0.98] cursor-pointer flex items-center justify-between transition-all duration-75"
                             onClick={() => {
                               setNewGameName(g.name);
                               setNewGameUrl(g.url);
@@ -761,20 +761,7 @@ try {
                   </div>
                   )}
                   
-                  <div className="space-y-1.5">
-                    <label className="text-sm font-bold text-foreground">Card Color (Optional)</label>
-                    <div className="flex gap-3">
-                      {['#D4A373', '#A3B18A', '#E0A96D', '#B5C99A', '#9B8B7B', '#8F9B93'].map(color => (
-                        <button
-                          key={color}
-                          type="button"
-                          onClick={() => setNewGameColor(color)}
-                          className={`w-8 h-8 rounded-full transition-transform ${newGameColor === color ? 'scale-110 ring-2 ring-primary ring-offset-2 ring-offset-background' : 'hover:scale-105'}`}
-                          style={{ backgroundColor: color }}
-                        />
-                      ))}
-                    </div>
-                  </div>
+
                 </div>
 
                 {addError && <p className="text-sm text-destructive bg-destructive/10 p-3 rounded-lg font-medium">{addError}</p>}
