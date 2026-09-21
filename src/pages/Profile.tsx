@@ -50,7 +50,22 @@ export function Profile() {
     loadProfile();
   }, [navigate]);
 
+  const extractStoragePath = (publicUrl: string, bucket: string): string | null => {
+    const marker = `/${bucket}/`;
+    const idx = publicUrl.indexOf(marker);
+    if (idx === -1) return null;
+    return publicUrl.substring(idx + marker.length);
+  };
+
   const uploadAvatar = async (file: File): Promise<string> => {
+    // Delete old avatar from storage to prevent orphaned files
+    if (profile?.avatar_url) {
+      const oldPath = extractStoragePath(profile.avatar_url, 'avatars');
+      if (oldPath) {
+        await supabase.storage.from('avatars').remove([oldPath]);
+      }
+    }
+
     const fileExt = file.name.split('.').pop();
     const fileName = `${Math.random().toString(36).substring(2)}-${Date.now()}.${fileExt}`;
     const filePath = `${fileName}`;
@@ -362,7 +377,7 @@ export function Profile() {
 
         {/* Version Info */}
         <div className="text-center pt-8 pb-4">
-          <p className="text-xs font-bold text-muted-foreground/40">DailyHub v1.1.3</p>
+          <p className="text-xs font-bold text-muted-foreground/40">DailyHub v1.2.0</p>
         </div>
       </div>
   );

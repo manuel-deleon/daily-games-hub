@@ -1,25 +1,24 @@
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { Outlet, useNavigate, Link, useLocation } from 'react-router-dom';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '../lib/supabase';
-import { Flame, User as UserIcon, Users, Bell, Home, Shield, Lightbulb, Megaphone } from 'lucide-react';
+import { Flame, User as UserIcon, Users, Home, Shield, Lightbulb, Megaphone } from 'lucide-react';
 import type { Profile } from '../types';
 
 
 export function Layout() {
   const navigate = useNavigate();
   const location = useLocation();
-  
-  const [profile, setProfile] = useState<Profile | null>(null);
-  
-  // Toast Notification State
-  const [toastMessage, setToastMessage] = useState<string | null>(null);
-  
-  useEffect(() => {
-    const loadProfile = async () => {
+  const queryClient = useQueryClient();
+
+  // Fetch profile with React Query (cached)
+  const { data: profile } = useQuery<Profile | null>({
+    queryKey: ['profile'],
+    queryFn: async () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
         navigate('/login');
-        return;
+        return null;
       }
 
       const { data, error } = await supabase
@@ -28,92 +27,24 @@ export function Layout() {
         .eq('id', session.user.id)
         .single();
       
-      if (!error && data) {
-        setProfile(data);
-      }
-    }
+      if (error) return null;
+      return data;
+    },
+  });
 
-    loadProfile();
-  }, [navigate]);
-
+  // Listen for profileUpdated events to invalidate cache
   useEffect(() => {
-    const handleProfileUpdated = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) return;
-      const { data, error } = await supabase.from('profiles').select('*').eq('id', session.user.id).single();
-      if (!error && data) setProfile(data);
+    const handleProfileUpdated = () => {
+      queryClient.invalidateQueries({ queryKey: ['profile'] });
     };
     window.addEventListener('profileUpdated', handleProfileUpdated);
     return () => window.removeEventListener('profileUpdated', handleProfileUpdated);
-  }, []);
-
-  useEffect(() => {
-    if (!profile) return;
-
-    const profileChannel = supabase
-        .channel('public:profiles')
-        .on(
-          'postgres_changes',
-          {
-            event: 'UPDATE',
-            schema: 'public',
-            table: 'profiles',
-            filter: `id=eq.${profile.id}`,
-          },
-          (payload) => {
-            setProfile(payload.new as Profile);
-          }
-        )
-        .subscribe();
-
-      const channel = supabase
-      .channel('public:friendships')
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'friendships',
-          filter: `friend_id=eq.${profile.id}`,
-        },
-        async (payload) => {
-          const { data } = await supabase
-            .from('profiles')
-            .select('username')
-            .eq('id', payload.new.user_id)
-            .single();
-
-          if (data) {
-            setToastMessage(`${data.username} started following you!`);
-            setTimeout(() => setToastMessage(null), 5000);
-          }
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(profileChannel);
-        supabase.removeChannel(channel);
-
-    };
-  }, [profile]);
+  }, [queryClient]);
 
   const isActive = (path: string) => location.pathname.startsWith(path);
 
   return (
     <div className="min-h-screen bg-background text-foreground transition-colors duration-300 relative pb-20 sm:pb-0">
-      
-      {/* Toast Notification UI */}
-      {toastMessage && (
-        <div className="fixed bottom-24 sm:bottom-6 right-6 z-50 animate-in slide-in-from-bottom-5 fade-in duration-300">
-          <div className="bg-primary text-primary-foreground px-6 py-4 rounded-xl shadow-2xl flex items-center space-x-3">
-            <div className="bg-white/20 p-2 rounded-full">
-              <Bell className="w-5 h-5 text-white" />
-            </div>
-            <p className="font-medium">{toastMessage}</p>
-          </div>
-        </div>
-      )}
 
       {/* Top Navbar */}
       <nav className="border-b border-border bg-card sticky top-0 z-40">

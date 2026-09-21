@@ -1,9 +1,12 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '../lib/supabase';
 import { Flame, Play, CheckCircle2, Circle, Plus, X, Loader2, Pencil, Trash2, Gamepad2, Upload, Pin } from 'lucide-react';
 import type { Game } from '../types';
 
 export function Dashboard() {
+  const queryClient = useQueryClient();
+
   // Helper for consistent local date string
   const getLocalDateStr = (d: Date) => {
     const y = d.getFullYear();
@@ -29,12 +32,134 @@ export function Dashboard() {
 
   
   const isPWA = window.matchMedia('(display-mode: standalone)').matches || ('standalone' in navigator && (navigator as any).standalone);
-  const [games, setGames] = useState<Game[]>([]);
-  const [recommendedGames, setRecommendedGames] = useState<any[]>([]);
-  const [allGlobalGames, setAllGlobalGames] = useState<any[]>([]);
+
+  // --- React Query: Get current session user ID ---
+  const [userId, setUserId] = useState<string | null>(null);
+  const today = getLocalDateStr(new Date());
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session) setUserId(session.user.id);
+    });
+  }, []);
+
+  // --- Fire-and-forget cleanup of old daily_progress (>90 days) ---
+  useEffect(() => {
+    if (!userId) return;
+    const cleanup = async () => {
+      try {
+        await supabase.rpc('cleanup_old_progress');
+      } catch (e) {
+        // Silently ignore errors — cleanup is best-effort
+      }
+    };
+    cleanup();
+  }, [userId]);
+
+  // --- React Query: User Games ---
+  const { data: games = [], isLoading: isLoadingGames } = useQuery<Game[]>({
+    queryKey: ['userGames', userId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('user_games')
+        .select('*, global_games(*)')
+        .eq('user_id', userId!)
+        .order('created_at', { ascending: false });
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!userId,
+  });
+
+  // --- React Query: Today's Progress ---
+  const { data: completedTodayIds = new Set<string>(), isLoading: isLoadingProgress } = useQuery({
+    queryKey: ['dailyProgress', userId, today],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('daily_progress')
+        .select('game_id')
+        .eq('user_id', userId!)
+        .eq('completed_date', today);
+      if (error) throw error;
+      return new Set((data || []).map(p => p.game_id));
+    },
+    enabled: !!userId,
+  });
+
+  // --- React Query: Weekly Progress ---
+  const { data: weeklyProgress = {} } = useQuery<Record<string, number>>({
+    queryKey: ['weeklyProgress', userId],
+    queryFn: async () => {
+      const weekAgo = new Date();
+      weekAgo.setDate(weekAgo.getDate() - 7);
+      const weekAgoStr = getLocalDateStr(weekAgo);
+
+      const { data, error } = await supabase
+        .from('daily_progress')
+        .select('completed_date, game_id')
+        .eq('user_id', userId!)
+        .gte('completed_date', weekAgoStr);
+      if (error) throw error;
+
+      const progress: Record<string, Set<string>> = {};
+      (data || []).forEach(p => {
+        if (!progress[p.completed_date]) {
+          progress[p.completed_date] = new Set();
+        }
+        progress[p.completed_date].add(p.game_id);
+      });
+
+      const progressCounts: Record<string, number> = {};
+      Object.keys(progress).forEach(date => {
+        progressCounts[date] = progress[date].size;
+      });
+      return progressCounts;
+    },
+    enabled: !!userId,
+  });
+
+  // --- React Query: Recommended Games (lazy, only when section is shown) ---
+  const [showRecommendations, setShowRecommendations] = useState(() => {
+    return localStorage.getItem('hideRecommendations') !== 'true';
+  });
+
+  const shouldLoadRecommendations = showRecommendations || games.length === 0;
+
+  const { data: recommendedGames = [] } = useQuery<any[]>({
+    queryKey: ['recommendedGames'],
+    queryFn: async () => {
+      const { data } = await supabase.from('global_games').select('*').eq('is_recommended', true);
+      return data || [];
+    },
+    enabled: shouldLoadRecommendations,
+    staleTime: 5 * 60 * 1000, // 5 min — recommendations don't change often
+  });
+
+  // --- Lazy search for global games (replaces loading ALL global_games) ---
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<any[]>([]);
   const [showGlobalDropdown, setShowGlobalDropdown] = useState(false);
-  const [completedTodayIds, setCompletedTodayIds] = useState<Set<string>>(new Set());
-  const [isLoading, setIsLoading] = useState(true);
+
+  // Debounced search
+  useEffect(() => {
+    if (!searchQuery.trim() || searchQuery.trim().length < 1) {
+      setSearchResults([]);
+      return;
+    }
+
+    const timer = setTimeout(async () => {
+      const { data } = await supabase
+        .from('global_games')
+        .select('*')
+        .ilike('name', `%${searchQuery.trim()}%`)
+        .limit(10);
+      setSearchResults(data || []);
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
+  // --- Local UI state ---
   const [isMarking, setIsMarking] = useState<string | null>(null);
   const [selectedHistoryGame, setSelectedHistoryGame] = useState<Game | null>(null);
   const [historyProgress, setHistoryProgress] = useState<{ completed_date: string, share_text: string | null }[]>([]);
@@ -75,6 +200,8 @@ export function Dashboard() {
     setNewGameColor('#709176');
     setLogoFile(null);
     setAddError(null);
+    setSearchQuery('');
+    setSearchResults([]);
     setIsAddModalOpen(true);
   };
 
@@ -102,6 +229,14 @@ export function Dashboard() {
     return data.publicUrl;
   };
 
+  // --- Invalidate helpers ---
+  const invalidateAll = useCallback(() => {
+    queryClient.invalidateQueries({ queryKey: ['userGames'] });
+    queryClient.invalidateQueries({ queryKey: ['dailyProgress'] });
+    queryClient.invalidateQueries({ queryKey: ['weeklyProgress'] });
+    window.dispatchEvent(new Event('profileUpdated'));
+  }, [queryClient]);
+
   const handleUpdateGame = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingGame) return;
@@ -123,8 +258,7 @@ export function Dashboard() {
       if (error) throw error;
 
       setEditingGame(null);
-      await loadData();
-        window.dispatchEvent(new Event('profileUpdated'));
+      invalidateAll();
     } catch (err: any) {
       setAddError(err.message || 'Error updating game.');
     } finally {
@@ -135,8 +269,9 @@ export function Dashboard() {
   const handleTogglePin = async (game: any) => {
     // Optimistic UI update
     const newPinnedStatus = !game.is_pinned;
-    setGames(prev => {
-      const updated = prev.map(g => g.id === game.id ? { ...g, is_pinned: newPinnedStatus } : g);
+    queryClient.setQueryData(['userGames', userId], (old: Game[] | undefined) => {
+      if (!old) return old;
+      const updated = old.map(g => g.id === game.id ? { ...g, is_pinned: newPinnedStatus } : g);
       return updated.sort((a: any, b: any) => {
         if (a.is_pinned && !b.is_pinned) return -1;
         if (!a.is_pinned && b.is_pinned) return 1;
@@ -146,7 +281,7 @@ export function Dashboard() {
 
     const { error } = await supabase.from('user_games').update({ is_pinned: newPinnedStatus }).eq('id', game.id);
     if (error) {
-      await loadData(); // Revert on error
+      queryClient.invalidateQueries({ queryKey: ['userGames'] }); // Revert on error
     }
   };
 
@@ -157,80 +292,9 @@ export function Dashboard() {
     
     const { error } = await supabase.from('user_games').delete().eq('id', game.id);
     if (!error) {
-      await loadData();
-        window.dispatchEvent(new Event('profileUpdated'));
+      invalidateAll();
     }
   };
-
-  const loadData = async () => {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) return;
-
-    // Fetch Profile
-    
-
-    const { data: recsData } = await supabase.from('global_games').select('*').eq('is_recommended', true);
-    if (recsData) setRecommendedGames(recsData);
-    const { data: allGlobalData } = await supabase.from('global_games').select('*');
-    if (allGlobalData) setAllGlobalGames(allGlobalData);
-
-    // Fetch Games
-    const { data: gamesData, error: gamesError } = await supabase
-      .from('user_games')
-      .select('*, global_games(*)')
-      .eq('user_id', session.user.id)
-      .order('created_at', { ascending: false });
-    
-    if (!gamesError && gamesData) {
-      setGames(gamesData);
-    }
-
-    // Fetch Progress
-    const today = getLocalDateStr(new Date());
-    const { data: progressData, error: progressError } = await supabase
-      .from('daily_progress')
-      .select('game_id')
-      .eq('user_id', session.user.id)
-      .eq('completed_date', today);
-
-    if (!progressError && progressData) {
-      const completedIds = new Set(progressData.map(p => p.game_id));
-      setCompletedTodayIds(completedIds);
-    }
-
-
-    // Fetch Weekly Progress
-    const weekAgo = new Date();
-    weekAgo.setDate(weekAgo.getDate() - 7);
-    const weekAgoStr = getLocalDateStr(weekAgo);
-
-    const { data: weekData } = await supabase
-      .from('daily_progress')
-      .select('completed_date, game_id')
-      .eq('user_id', session.user.id)
-      .gte('completed_date', weekAgoStr);
-
-    if (weekData) {
-      const progress: Record<string, Set<string>> = {};
-      weekData.forEach(p => {
-        if (!progress[p.completed_date]) {
-          progress[p.completed_date] = new Set();
-        }
-        progress[p.completed_date].add(p.game_id);
-      });
-
-      const progressCounts: Record<string, number> = {};
-      Object.keys(progress).forEach(date => {
-        progressCounts[date] = progress[date].size;
-      });
-      setWeeklyProgress(progressCounts);
-    }
-    setIsLoading(false);
-  };
-
-  useEffect(() => {
-    loadData();
-  }, []);
 
   const handleMarkCompleted = async (e: React.MouseEvent, gameId: string) => {
     e.preventDefault();
@@ -245,8 +309,7 @@ export function Dashboard() {
         p_local_date: getLocalDateStr(new Date())
       });
       if (!error) {
-        await loadData();
-        window.dispatchEvent(new Event('profileUpdated'));
+        invalidateAll();
       } else {
         console.error("Error undoing:", error); alert("Error deshaciendo progreso: " + error.message);
       }
@@ -257,8 +320,7 @@ export function Dashboard() {
       });
   
       if (!error) {
-        await loadData();
-        window.dispatchEvent(new Event('profileUpdated'));
+        invalidateAll();
         setShowShareModal(gameId);
       } else {
         console.error("Error marcando completado:", error); alert("Error guardando progreso: " + error.message);
@@ -274,12 +336,12 @@ export function Dashboard() {
     setIsSavingShare(true);
     const { data: { session } } = await supabase.auth.getSession();
     if (session) {
-      const today = getLocalDateStr(new Date());
+      const todayStr = getLocalDateStr(new Date());
       await supabase.from('daily_progress')
         .update({ share_text: shareText })
         .eq('user_id', session.user.id)
         .eq('game_id', showShareModal)
-        .eq('completed_date', today);
+        .eq('completed_date', todayStr);
     }
     setIsSavingShare(false);
     setShowShareModal(null);
@@ -404,8 +466,7 @@ const handleAddGame = async (e: React.FormEvent) => {
       setNewGameUrl('');
       setNewGameColor('#709176');
       setLogoFile(null);
-      await loadData();
-        window.dispatchEvent(new Event('profileUpdated'));
+      invalidateAll();
       setIsAddModalOpen(false);
     } catch (err: any) {
       setAddError(err.message || 'Error adding game.');
@@ -414,18 +475,15 @@ const handleAddGame = async (e: React.FormEvent) => {
     }
   };
 
-  // Recommendations state
-  const [showRecommendations, setShowRecommendations] = useState(() => {
-    return localStorage.getItem('hideRecommendations') !== 'true';
-  });
+  const dismissRecommendations = () => {
+    localStorage.setItem('hideRecommendations', 'true');
+    setShowRecommendations(false);
+  };
 
-  // Weekly progress
-  const [weeklyProgress, setWeeklyProgress] = useState<Record<string, number>>({});
-  
-
+  // --- Loading state ---
+  const isLoading = isLoadingGames || isLoadingProgress;
 
   if (isLoading) {
-    
   
 return (
       <div className="flex justify-center items-center h-64">
@@ -435,22 +493,21 @@ return (
   }
 
   // Dashboard calculations
+  const sortedGames = [...games].sort((a: any, b: any) => {
+    if (a.is_pinned && !b.is_pinned) return -1;
+    if (!a.is_pinned && b.is_pinned) return 1;
+    return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+  });
   const totalGames = games.length;
   const completedGamesCount = completedTodayIds.size;
   const remainingGames = totalGames - completedGamesCount;
   
   // Date formatting
-  const today = new Date();
-  
+  const todayDate = new Date();
   
 
-  const dismissRecommendations = () => {
-    localStorage.setItem('hideRecommendations', 'true');
-    setShowRecommendations(false);
-  };
-
   
-  const todayIndex = (today.getDay() + 6) % 7; // Monday = 0, Sunday = 6
+  const todayIndex = (todayDate.getDay() + 6) % 7; // Monday = 0, Sunday = 6
   
   const getDayStatus = (offsetFromToday: number) => {
     const d = new Date();
@@ -513,7 +570,7 @@ return (
           </button>
         </div>
 
-      {games.length === 0 ? (
+      {sortedGames.length === 0 ? (
         <div className="text-center py-12 bg-card rounded-2xl border border-border shadow-sm mb-8">
           <Gamepad2 className="w-12 h-12 text-muted-foreground mx-auto mb-4 opacity-50" />
           <p className="text-muted-foreground text-lg mb-6">You have no games in your catalog yet.</p>
@@ -527,7 +584,7 @@ return (
         </div>
       ) : (
         <div className="flex flex-col sm:grid sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-5 mb-8">
-            {games.map((game) => {
+            {sortedGames.map((game) => {
               const isCompleted = completedTodayIds.has(game.id);
   
               return (
@@ -653,8 +710,7 @@ try {
   const { data: { session } } = await supabase.auth.getSession();
   if (session) {
     await supabase.from('user_games').insert({ user_id: session.user.id, global_game_id: rec.id });
-    await loadData();
-    window.dispatchEvent(new Event('profileUpdated'));
+    invalidateAll();
   }
 } finally {
   setAddingRec(null);
@@ -704,15 +760,18 @@ try {
                       value={newGameName}
                       onChange={(e) => {
                         setNewGameName(e.target.value);
-                        if (!editingGame) setShowGlobalDropdown(true);
+                        if (!editingGame) {
+                          setSearchQuery(e.target.value);
+                          setShowGlobalDropdown(true);
+                        }
                       }}
                       onFocus={() => { if (!editingGame) setShowGlobalDropdown(true); }}
                       onBlur={() => setTimeout(() => setShowGlobalDropdown(false), 200)}
                       className="w-full px-4 py-2.5 border bg-background border-border rounded-xl text-foreground focus:outline-none focus:ring-2 focus:ring-primary shadow-sm transition-shadow"
                     />
-                    {showGlobalDropdown && newGameName.trim().length > 0 && allGlobalGames.filter(g => g.name.toLowerCase().includes(newGameName.toLowerCase()) && !games.some(ug => ug.global_game_id === g.id)).length > 0 && (
+                    {showGlobalDropdown && searchResults.filter(g => !games.some(ug => ug.global_game_id === g.id)).length > 0 && (
                       <div className="absolute z-10 w-full mt-1 bg-card border border-border rounded-xl shadow-lg max-h-48 overflow-y-auto">
-                        {allGlobalGames.filter(g => g.name.toLowerCase().includes(newGameName.toLowerCase()) && !games.some(ug => ug.global_game_id === g.id)).map(g => (
+                        {searchResults.filter(g => !games.some(ug => ug.global_game_id === g.id)).map(g => (
                           <div 
                             key={g.id} 
                             className="px-4 py-3 hover:bg-muted active:bg-primary/10 active:scale-[0.98] cursor-pointer flex items-center justify-between transition-all duration-75"
@@ -720,6 +779,7 @@ try {
                               setNewGameName(g.name);
                               setNewGameUrl(g.url);
                               setShowGlobalDropdown(false);
+                              setSearchQuery('');
                             }}
                           >
                             <div className="flex flex-col">
@@ -735,7 +795,7 @@ try {
 
                   <div className="space-y-1.5">
                     <label htmlFor="url" className="text-sm font-bold text-foreground">
-                      {allGlobalGames.some(g => g.name.toLowerCase() === newGameName.trim().toLowerCase()) ? "URL Link (Auto-filled)" : "URL Link"}
+                      {searchResults.some(g => g.name.toLowerCase() === newGameName.trim().toLowerCase()) ? "URL Link (Auto-filled)" : "URL Link"}
                     </label>
                     <input
                         id="url"
@@ -806,10 +866,7 @@ try {
               <div className="space-y-2">
                 <label className="text-sm font-bold text-foreground">Paste your results (Optional)</label>
                 <textarea
-                  placeholder="e.g. Wordle 1,024 3/6
-
-⬛🟨⬛⬛🟩
-🟩🟩🟩🟩🟩"
+                  placeholder={`e.g. Wordle 1,024 3/6\n\n⬛🟨⬛⬛🟩\n🟩🟩🟩🟩🟩`}
                   value={shareText}
                   onChange={(e) => setShareText(e.target.value)}
                   className="w-full px-4 py-3 border bg-background border-border rounded-xl text-foreground focus:outline-none focus:ring-2 focus:ring-primary shadow-sm min-h-[120px] resize-none"
