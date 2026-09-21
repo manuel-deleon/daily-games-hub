@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { Flame, Play, CheckCircle2, Circle, Plus, X, Loader2, Pencil, Trash2, Gamepad2, Upload } from 'lucide-react';
-import type { Game, Profile } from '../types';
+import type { Game } from '../types';
 
 export function Dashboard() {
   // Helper to get logo or favicon
@@ -20,7 +20,7 @@ export function Dashboard() {
     return undefined;
   };
 
-  const [profile, setProfile] = useState<Profile | null>(null);
+  
   const [games, setGames] = useState<Game[]>([]);
   const [completedTodayIds, setCompletedTodayIds] = useState<Set<string>>(new Set());
   const [isLoading, setIsLoading] = useState(true);
@@ -116,12 +116,7 @@ export function Dashboard() {
     if (!session) return;
 
     // Fetch Profile
-    const { data: profileData } = await supabase
-      .from('profiles')
-      .select('*, global_games(*)')
-      .eq('id', session.user.id)
-      .single();
-    if (profileData) setProfile(profileData);
+    
 
     // Fetch Games
     const { data: gamesData, error: gamesError } = await supabase
@@ -147,6 +142,33 @@ export function Dashboard() {
       setCompletedTodayIds(completedIds);
     }
 
+
+    // Fetch Weekly Progress
+    const weekAgo = new Date();
+    weekAgo.setDate(weekAgo.getDate() - 7);
+    const weekAgoStr = weekAgo.toISOString().split('T')[0];
+
+    const { data: weekData } = await supabase
+      .from('daily_progress')
+      .select('completed_date, game_id')
+      .eq('user_id', session.user.id)
+      .gte('completed_date', weekAgoStr);
+
+    if (weekData) {
+      const progress: Record<string, Set<string>> = {};
+      weekData.forEach(p => {
+        if (!progress[p.completed_date]) {
+          progress[p.completed_date] = new Set();
+        }
+        progress[p.completed_date].add(p.game_id);
+      });
+
+      const progressCounts: Record<string, number> = {};
+      Object.keys(progress).forEach(date => {
+        progressCounts[date] = progress[date].size;
+      });
+      setWeeklyProgress(progressCounts);
+    }
     setIsLoading(false);
   };
 
@@ -321,42 +343,7 @@ const handleAddGame = async (e: React.FormEvent) => {
   // Weekly progress
   const [weeklyProgress, setWeeklyProgress] = useState<Record<string, number>>({});
   
-  useEffect(() => {
-    const fetchWeeklyProgress = async () => {
-      if (!profile || games.length === 0) return;
-      
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) return;
 
-      const weekAgo = new Date();
-      weekAgo.setDate(weekAgo.getDate() - 7);
-      const weekAgoStr = weekAgo.toISOString().split('T')[0];
-
-      const { data } = await supabase
-        .from('daily_progress')
-        .select('completed_date, game_id')
-        .eq('user_id', session.user.id)
-        .gte('completed_date', weekAgoStr);
-
-      if (data) {
-        const progress: Record<string, Set<string>> = {};
-        data.forEach(p => {
-          if (!progress[p.completed_date]) {
-            progress[p.completed_date] = new Set();
-          }
-          progress[p.completed_date].add(p.game_id);
-        });
-
-        const progressCounts: Record<string, number> = {};
-        Object.keys(progress).forEach(date => {
-          progressCounts[date] = progress[date].size;
-        });
-        setWeeklyProgress(progressCounts);
-      }
-    };
-    
-    fetchWeeklyProgress();
-  }, [profile, games.length]);
 
   if (isLoading) {
     
@@ -387,12 +374,18 @@ return (
   const todayIndex = (today.getDay() + 6) % 7; // Monday = 0, Sunday = 6
   
   const getDayStatus = (offsetFromToday: number) => {
-    if (totalGames === 0) return false;
     const d = new Date();
     d.setDate(d.getDate() - offsetFromToday);
     const dStr = d.toISOString().split('T')[0];
     const completedCount = weeklyProgress[dStr] || 0;
-    return completedCount >= totalGames;
+    
+    // Si es hoy, exigimos que complete todos. Si es en el pasado, con que haya completado al menos 1 lo mostramos verde
+    // (porque no sabemos cuántos juegos tenía en total en ese momento exacto del pasado).
+    if (offsetFromToday === 0) {
+      if (totalGames === 0) return false;
+      return completedCount >= totalGames;
+    }
+    return completedCount > 0;
   };
 
   return (
@@ -418,7 +411,7 @@ return (
                 return (
                   <div key={dayIndex} className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs transition-all ${
                       isCompleted 
-                        ? 'bg-foreground text-background shadow-sm' 
+                        ? 'bg-primary text-primary-foreground shadow-sm' 
                         : isToday
                           ? 'bg-muted text-foreground ring-2 ring-primary ring-offset-2 ring-offset-background'
                           : isFuture

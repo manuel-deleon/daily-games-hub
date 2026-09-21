@@ -39,7 +39,23 @@ export function Layout() {
   useEffect(() => {
     if (!profile) return;
 
-    const channel = supabase
+    const profileChannel = supabase
+        .channel('public:profiles')
+        .on(
+          'postgres_changes',
+          {
+            event: 'UPDATE',
+            schema: 'public',
+            table: 'profiles',
+            filter: `id=eq.${profile.id}`,
+          },
+          (payload) => {
+            setProfile(payload.new as Profile);
+          }
+        )
+        .subscribe();
+
+      const channel = supabase
       .channel('public:friendships')
       .on(
         'postgres_changes',
@@ -65,7 +81,9 @@ export function Layout() {
       .subscribe();
 
     return () => {
-      supabase.removeChannel(channel);
+      supabase.removeChannel(profileChannel);
+        supabase.removeChannel(channel);
+
     };
   }, [profile]);
 

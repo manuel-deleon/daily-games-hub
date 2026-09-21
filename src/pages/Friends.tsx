@@ -557,7 +557,22 @@ return (
                   )}
                 </div>
                 <div>
-                  <h3 className="text-xl font-extrabold text-foreground leading-none mb-1">{selectedUser.username}</h3>
+                  <div className="flex items-center space-x-3 mb-1">
+                      <h3 className="text-xl font-extrabold text-foreground leading-none">{selectedUser.username}</h3>
+                      {selectedUser.id !== currentUser && !isFollowing(selectedUser.id) && (
+                        <button
+                          onClick={() => handleFollow(selectedUser.id)}
+                          className="px-3 py-1 bg-primary text-primary-foreground text-xs font-bold rounded-full hover:opacity-90 transition-opacity shadow-sm flex items-center"
+                        >
+                          <UserPlus className="w-3 h-3 mr-1" /> Follow
+                        </button>
+                      )}
+                      {selectedUser.id !== currentUser && isFollowing(selectedUser.id) && (
+                        <span className="px-3 py-1 bg-muted text-muted-foreground border border-border text-xs font-bold rounded-full shadow-sm">
+                          Following
+                        </span>
+                      )}
+                    </div>
                   <div className="flex items-center space-x-2">
                     <span className="text-sm text-muted-foreground font-medium">Daily games catalog</span>
                     <span className="text-muted-foreground">•</span>
