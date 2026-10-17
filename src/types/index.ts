@@ -26,6 +26,7 @@ export interface Game {
   custom_logo_url: string | null;
   custom_color: string | null;
   is_pinned?: boolean;
+  is_private?: boolean;
   current_streak: number;
   created_at: string;
   global_games?: GlobalGame;

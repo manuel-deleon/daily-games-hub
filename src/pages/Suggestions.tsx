@@ -2,14 +2,14 @@ import { useEffect, useState, useRef } from 'react';
 import { supabase } from '../lib/supabase';
 import {
   Lightbulb, ThumbsUp, ThumbsDown, MessageSquare, Plus, Loader2,
-  Trash2, Bug, HelpCircle, Megaphone, SlidersHorizontal, X, Send, ChevronDown, Clock, CalendarDays
+  Trash2, Bug, HelpCircle, Megaphone, SlidersHorizontal, X, Send, ChevronDown, Clock, CalendarDays, User
 } from 'lucide-react';
 import type { Profile } from '../types';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type FeedbackType = 'idea' | 'bug' | 'question' | 'other';
 type SortMode = 'score' | 'newest' | 'oldest';
-type StatusFilter = 'all' | 'pending' | 'working' | 'implemented';
+type StatusFilter = 'pending' | 'working' | 'implemented' | 'rejected';
 
 const FEEDBACK_TYPES: { value: FeedbackType; label: string; icon: React.ReactNode; color: string }[] = [
   { value: 'idea',     label: 'Idea',     icon: <Lightbulb className="w-4 h-4" />, color: 'text-yellow-500 bg-yellow-500/10 border-yellow-500/30' },
@@ -35,11 +35,24 @@ export function Suggestions() {
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [isAnonymous, setIsAnonymous] = useState(false);
 
-  // Filters
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
-  const [typeFilter, setTypeFilter] = useState<FeedbackType | 'all'>('all');
+  // Filters (Multi-select)
+  const [selectedStatuses, setSelectedStatuses] = useState<StatusFilter[]>([]);
+  const [selectedTypes, setSelectedTypes] = useState<FeedbackType[]>([]);
+  const [onlyMine, setOnlyMine] = useState(false);
   const [sortMode, setSortMode] = useState<SortMode>('score');
   const [showFilters, setShowFilters] = useState(false);
+
+  const toggleStatus = (status: StatusFilter) => {
+    setSelectedStatuses(prev =>
+      prev.includes(status) ? prev.filter(s => s !== status) : [...prev, status]
+    );
+  };
+
+  const toggleType = (type: FeedbackType) => {
+    setSelectedTypes(prev =>
+      prev.includes(type) ? prev.filter(t => t !== type) : [...prev, type]
+    );
+  };
 
   const [myVotes, setMyVotes] = useState<Record<string, number>>({});
 
@@ -262,8 +275,9 @@ export function Suggestions() {
 
   // ── Filtering + Sorting ──────────────────────────────────────────────────
   let filtered = suggestions.filter(s => {
-    if (statusFilter !== 'all' && s.status !== statusFilter) return false;
-    if (typeFilter !== 'all' && s.feedback_type !== typeFilter) return false;
+    if (selectedStatuses.length > 0 && !selectedStatuses.includes(s.status)) return false;
+    if (selectedTypes.length > 0 && !selectedTypes.includes(s.feedback_type)) return false;
+    if (onlyMine && s.user_id !== profile?.id) return false;
     return true;
   });
 
@@ -274,7 +288,7 @@ export function Suggestions() {
     return 0;
   });
 
-  const activeFiltersCount = (statusFilter !== 'all' ? 1 : 0) + (typeFilter !== 'all' ? 1 : 0) + (sortMode !== 'score' ? 1 : 0);
+  const activeFiltersCount = selectedStatuses.length + selectedTypes.length + (onlyMine ? 1 : 0) + (sortMode !== 'score' ? 1 : 0);
 
   if (isLoading) {
     return <div className="flex justify-center py-12"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>;
@@ -372,23 +386,56 @@ export function Suggestions() {
 
       {/* ── Filter Bar ── */}
       <div className="bg-card border border-border rounded-2xl overflow-hidden shadow-sm">
-        {/* Top row: status pills + filter toggle */}
+        {/* Top row: status pills + onlyMine + filter toggle */}
         <div className="flex items-center gap-2 p-3 border-b border-border flex-wrap">
-          <div className="flex flex-wrap gap-1.5 flex-1 min-w-0">
-            {(['all', 'pending', 'working', 'implemented'] as const).map(f => (
-              <button
-                key={f}
-                onClick={() => setStatusFilter(f)}
-                className={`px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap transition-colors border ${
-                  statusFilter === f
-                    ? 'bg-primary text-primary-foreground border-primary'
-                    : 'bg-background border-border text-muted-foreground hover:bg-muted'
-                }`}
-              >
-                {f.charAt(0).toUpperCase() + f.slice(1)}
-              </button>
-            ))}
+          <div className="flex flex-wrap items-center gap-1.5 flex-1 min-w-0">
+            <button
+              onClick={() => setSelectedStatuses([])}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap transition-colors border ${
+                selectedStatuses.length === 0
+                  ? 'bg-primary text-primary-foreground border-primary'
+                  : 'bg-background border-border text-muted-foreground hover:bg-muted'
+              }`}
+            >
+              All
+            </button>
+            {([
+              { key: 'pending', label: 'Pending', activeClass: 'bg-primary text-primary-foreground border-primary' },
+              { key: 'working', label: 'Working on it', activeClass: 'bg-amber-500 text-white border-amber-500' },
+              { key: 'implemented', label: 'Implemented', activeClass: 'bg-[#709176] text-white border-[#709176]' },
+              { key: 'rejected', label: 'Rejected', activeClass: 'bg-red-500 text-white border-red-500' }
+            ] as const).map(f => {
+              const isSelected = selectedStatuses.includes(f.key);
+              return (
+                <button
+                  key={f.key}
+                  onClick={() => toggleStatus(f.key)}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap transition-colors border ${
+                    isSelected
+                      ? f.activeClass
+                      : 'bg-background border-border text-muted-foreground hover:bg-muted'
+                  }`}
+                >
+                  {f.label}
+                </button>
+              );
+            })}
+
+            <div className="h-4 w-px bg-border mx-1 hidden sm:block" />
+
+            <button
+              onClick={() => setOnlyMine(!onlyMine)}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap transition-colors border ${
+                onlyMine
+                  ? 'bg-primary text-primary-foreground border-primary'
+                  : 'bg-background border-border text-muted-foreground hover:bg-muted'
+              }`}
+            >
+              <User className="w-3.5 h-3.5" />
+              My posts
+            </button>
           </div>
+
           <button
             onClick={() => setShowFilters(!showFilters)}
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold border transition-colors flex-shrink-0 ${
@@ -411,31 +458,34 @@ export function Suggestions() {
         {/* Expandable filter panel */}
         {showFilters && (
           <div className="p-4 space-y-4 animate-in slide-in-from-top-2 fade-in duration-200">
-            {/* Type filter */}
+            {/* Type filter (Multi-select) */}
             <div>
-              <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">Feedback Type</p>
+              <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">Feedback Type (Multi-select)</p>
               <div className="flex flex-wrap gap-1.5">
                 <button
-                  onClick={() => setTypeFilter('all')}
+                  onClick={() => setSelectedTypes([])}
                   className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition-colors ${
-                    typeFilter === 'all'
+                    selectedTypes.length === 0
                       ? 'bg-foreground text-background border-foreground'
                       : 'bg-background border-border text-muted-foreground hover:bg-muted'
                   }`}
                 >
                   All types
                 </button>
-                {FEEDBACK_TYPES.map(t => (
-                  <button
-                    key={t.value}
-                    onClick={() => setTypeFilter(t.value)}
-                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold border transition-colors ${
-                      typeFilter === t.value ? t.color : 'bg-background border-border text-muted-foreground hover:bg-muted'
-                    }`}
-                  >
-                    {t.icon} {t.label}
-                  </button>
-                ))}
+                {FEEDBACK_TYPES.map(t => {
+                  const isSelected = selectedTypes.includes(t.value);
+                  return (
+                    <button
+                      key={t.value}
+                      onClick={() => toggleType(t.value)}
+                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold border transition-colors ${
+                        isSelected ? t.color : 'bg-background border-border text-muted-foreground hover:bg-muted'
+                      }`}
+                    >
+                      {t.icon} {t.label}
+                    </button>
+                  );
+                })}
               </div>
             </div>
 
@@ -466,7 +516,7 @@ export function Suggestions() {
             {/* Reset */}
             {activeFiltersCount > 0 && (
               <button
-                onClick={() => { setStatusFilter('all'); setTypeFilter('all'); setSortMode('score'); }}
+                onClick={() => { setSelectedStatuses([]); setSelectedTypes([]); setOnlyMine(false); setSortMode('score'); }}
                 className="text-xs font-bold text-muted-foreground hover:text-destructive transition-colors flex items-center gap-1"
               >
                 <X className="w-3 h-3" /> Clear all filters
