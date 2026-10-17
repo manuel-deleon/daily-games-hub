@@ -49,6 +49,7 @@ export function Suggestions() {
   const [isLoadingComments, setIsLoadingComments] = useState(false);
   const [newComment, setNewComment] = useState('');
   const [isPostingComment, setIsPostingComment] = useState(false);
+  const [commentError, setCommentError] = useState<string | null>(null);
   const commentEndRef = useRef<HTMLDivElement>(null);
 
   const loadData = async () => {
@@ -153,22 +154,70 @@ export function Suggestions() {
   };
 
   // ── Thread / Comments ─────────────────────────────────────────────────
+  const fetchThreadComments = async (suggestionId: string) => {
+    setCommentError(null);
+    try {
+      // 1. Fetch comments directly (not dependent on PostgREST foreign key cache)
+      const { data: comments, error: commentsError } = await supabase
+        .from('suggestion_comments')
+        .select('*')
+        .eq('suggestion_id', suggestionId)
+        .order('created_at', { ascending: true });
+
+      if (commentsError) {
+        console.error('Error fetching comments:', commentsError);
+        setCommentError(`Error cargando comentarios: ${commentsError.message}`);
+        return [];
+      }
+
+      if (!comments || comments.length === 0) {
+        return [];
+      }
+
+      // 2. Fetch associated profiles for usernames/avatars
+      const userIds = Array.from(new Set(comments.map((c: any) => c.user_id).filter(Boolean)));
+      if (userIds.length > 0) {
+        const { data: profiles, error: profError } = await supabase
+          .from('profiles')
+          .select('id, username, avatar_url, is_admin')
+          .in('id', userIds);
+
+        if (profError) {
+          console.warn('Error fetching comment profiles:', profError);
+        }
+
+        const profileMap = new Map((profiles || []).map((p: any) => [p.id, p]));
+        return comments.map((c: any) => ({
+          ...c,
+          profiles: profileMap.get(c.user_id) || null,
+        }));
+      }
+
+      return comments;
+    } catch (err: any) {
+      console.error('Exception fetching comments:', err);
+      setCommentError(err.message || 'Error inesperado al cargar comentarios');
+      return [];
+    }
+  };
+
   const openThread = async (s: any) => {
     setThreadSuggestion(s);
+    setCommentError(null);
     setIsLoadingComments(true);
-    const { data } = await supabase
-      .from('suggestion_comments')
-      .select('*, profiles(username, avatar_url, is_admin)')
-      .eq('suggestion_id', s.id)
-      .order('created_at', { ascending: true });
-    setThreadComments(data || []);
+    const comments = await fetchThreadComments(s.id);
+    setThreadComments(comments);
     setIsLoadingComments(false);
   };
 
   const postComment = async () => {
     if (!newComment.trim() || !threadSuggestion) return;
+    setCommentError(null);
     const { data: { session } } = await supabase.auth.getSession();
-    if (!session) return;
+    if (!session) {
+      setCommentError('Debes iniciar sesión para comentar.');
+      return;
+    }
     setIsPostingComment(true);
 
     const { error } = await supabase.from('suggestion_comments').insert({
@@ -177,18 +226,28 @@ export function Suggestions() {
       content: newComment.trim(),
     });
 
-    if (!error) {
+    if (error) {
+      console.error('Error posting comment:', error);
+      setCommentError(`Error al publicar comentario: ${error.message}`);
+    } else {
       setNewComment('');
-      // Reload comments
-      const { data } = await supabase
-        .from('suggestion_comments')
-        .select('*, profiles(username, avatar_url, is_admin)')
-        .eq('suggestion_id', threadSuggestion.id)
-        .order('created_at', { ascending: true });
-      setThreadComments(data || []);
+      const updated = await fetchThreadComments(threadSuggestion.id);
+      setThreadComments(updated);
       setTimeout(() => commentEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
     }
     setIsPostingComment(false);
+  };
+
+  const handleDeleteComment = async (commentId: string) => {
+    if (!confirm('¿Seguro que deseas eliminar este comentario?')) return;
+    const { error } = await supabase.from('suggestion_comments').delete().eq('id', commentId);
+    if (error) {
+      console.error('Error deleting comment:', error);
+      setCommentError(error.message);
+    } else if (threadSuggestion) {
+      const updated = await fetchThreadComments(threadSuggestion.id);
+      setThreadComments(updated);
+    }
   };
 
   // ── Helpers ──────────────────────────────────────────────────────────────
@@ -569,8 +628,9 @@ export function Suggestions() {
                 threadComments.map((c, i) => {
                   const isAdmin = c.profiles?.is_admin;
                   const isMe = c.user_id === profile?.id;
+                  const canDelete = isMe || profile?.is_admin;
                   return (
-                    <div key={i} className={`flex gap-3 ${isMe ? 'flex-row-reverse' : ''}`}>
+                    <div key={c.id || i} className={`flex gap-3 ${isMe ? 'flex-row-reverse' : ''} group`}>
                       {/* Avatar */}
                       <div className={`w-8 h-8 rounded-full flex-shrink-0 flex items-center justify-center text-xs font-bold border ${
                         isAdmin ? 'bg-primary/10 border-primary text-primary' : 'bg-muted border-border text-foreground'
@@ -583,7 +643,7 @@ export function Suggestions() {
                       <div className={`flex flex-col max-w-[75%] ${isMe ? 'items-end' : ''}`}>
                         <div className="flex items-center gap-1.5 mb-1">
                           <span className="text-xs font-bold text-foreground">
-                            {c.profiles?.username ?? 'Unknown'}
+                            {c.profiles?.username ?? 'User'}
                           </span>
                           {isAdmin && (
                             <span className="text-[10px] font-bold bg-primary/10 text-primary px-1.5 py-0.5 rounded-full border border-primary/20">Admin</span>
@@ -591,13 +651,22 @@ export function Suggestions() {
                           <span className="text-[10px] text-muted-foreground/60">
                             {new Date(c.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
                           </span>
+                          {canDelete && c.id && (
+                            <button
+                              onClick={() => handleDeleteComment(c.id)}
+                              className="opacity-0 group-hover:opacity-100 p-0.5 text-muted-foreground hover:text-destructive transition-all"
+                              title="Delete comment"
+                            >
+                              <Trash2 className="w-3 h-3" />
+                            </button>
+                          )}
                         </div>
-                        <div className={`px-3 py-2 rounded-2xl text-sm text-foreground whitespace-pre-wrap break-words ${
+                        <div className={`px-3 py-2 rounded-2xl text-sm whitespace-pre-wrap break-words ${
                           isMe
                             ? 'bg-primary text-primary-foreground rounded-tr-sm'
                             : isAdmin
-                              ? 'bg-primary/5 border border-primary/20 rounded-tl-sm'
-                              : 'bg-muted border border-border rounded-tl-sm'
+                              ? 'bg-primary/5 border border-primary/20 text-foreground rounded-tl-sm'
+                              : 'bg-muted border border-border text-foreground rounded-tl-sm'
                         }`}>
                           {c.content}
                         </div>
@@ -611,6 +680,14 @@ export function Suggestions() {
 
             {/* Comment input */}
             <div className="p-4 border-t border-border bg-muted/20 flex-shrink-0">
+              {commentError && (
+                <div className="bg-destructive/10 border border-destructive/20 text-destructive text-xs font-bold p-3 rounded-xl mb-3 flex items-start gap-2">
+                  <span className="flex-1">{commentError}</span>
+                  <button onClick={() => setCommentError(null)} className="text-destructive/80 hover:text-destructive">
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              )}
               <div className="flex gap-2 items-end">
                 <textarea
                   value={newComment}
