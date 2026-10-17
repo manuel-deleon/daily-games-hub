@@ -398,6 +398,13 @@ export function Dashboard() {
           .update({ current_streak: 0 })
           .eq('id', showShareModal);
         if (streakError) throw streakError;
+
+        try {
+          await supabase.rpc('recalculate_individual_streak', { p_user_id: session.user.id, p_game_id: showShareModal });
+          await supabase.rpc('recalculate_global_streak', { p_user_id: session.user.id });
+        } catch {
+          // Fallback if functions not yet updated
+        }
       }
 
       invalidateAll();
