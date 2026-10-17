@@ -346,64 +346,41 @@ export function Dashboard() {
       if (!session) return;
       const todayStr = getLocalDateStr(new Date());
 
-      if (isWon) {
-        // Mark as completed & update streak
-        const { error: rpcError } = await supabase.rpc('mark_game_completed', {
-          p_game_id: showShareModal,
-          p_local_date: todayStr
-        });
-        if (rpcError) throw rpcError;
+      // 1. Intentar la llamada atómica única a mark_game_completed (con soporte p_won y p_share_text)
+      const { error: rpcError } = await supabase.rpc('mark_game_completed', {
+        p_game_id: showShareModal,
+        p_local_date: todayStr,
+        p_won: isWon,
+        p_share_text: shareText.trim() || null
+      });
 
-        // If shareText or won column to persist
-        try {
-          await supabase.from('daily_progress')
-            .update({ share_text: shareText.trim() || null, won: true })
-            .eq('user_id', session.user.id)
-            .eq('game_id', showShareModal)
-            .eq('completed_date', todayStr);
-        } catch {
-          await supabase.from('daily_progress')
-            .update({ share_text: shareText.trim() || null })
-            .eq('user_id', session.user.id)
-            .eq('game_id', showShareModal)
-            .eq('completed_date', todayStr);
-        }
-      } else {
-        // Mark as loss: record progress for today, but reset streak to 0
-        const progressPayload: any = {
-          user_id: session.user.id,
-          game_id: showShareModal,
-          completed_date: todayStr,
-          share_text: shareText.trim() || null,
-          won: false
-        };
-
-        const { error: insertError } = await supabase.from('daily_progress').upsert(progressPayload, {
-          onConflict: 'user_id,game_id,completed_date'
-        });
-
-        if (insertError && insertError.message?.includes('won')) {
-          delete progressPayload.won;
-          const { error: retryError } = await supabase.from('daily_progress').upsert(progressPayload, {
-            onConflict: 'user_id,game_id,completed_date'
-          });
-          if (retryError) throw retryError;
-        } else if (insertError) {
-          throw insertError;
-        }
-
-        // Reset streak for this game
-        const { error: streakError } = await supabase
-          .from('user_games')
-          .update({ current_streak: 0 })
-          .eq('id', showShareModal);
-        if (streakError) throw streakError;
-
-        try {
-          await supabase.rpc('recalculate_individual_streak', { p_user_id: session.user.id, p_game_id: showShareModal });
-          await supabase.rpc('recalculate_global_streak', { p_user_id: session.user.id });
-        } catch {
-          // Fallback if functions not yet updated
+      // 2. Si la función en Supabase aún tiene la firma antigua de 2 argumentos, fallback transparente:
+      if (rpcError) {
+        if (rpcError.message?.includes('p_won') || rpcError.code === 'PGRST202') {
+          if (isWon) {
+            await supabase.rpc('mark_game_completed', {
+              p_game_id: showShareModal,
+              p_local_date: todayStr
+            });
+            if (shareText.trim()) {
+              await supabase.from('daily_progress')
+                .update({ share_text: shareText.trim(), won: true })
+                .eq('user_id', session.user.id)
+                .eq('game_id', showShareModal)
+                .eq('completed_date', todayStr);
+            }
+          } else {
+            await supabase.from('daily_progress').upsert({
+              user_id: session.user.id,
+              game_id: showShareModal,
+              completed_date: todayStr,
+              share_text: shareText.trim() || null,
+              won: false
+            }, { onConflict: 'user_id,game_id,completed_date' });
+            await supabase.from('user_games').update({ current_streak: 0 }).eq('id', showShareModal);
+          }
+        } else {
+          throw rpcError;
         }
       }
 
