@@ -304,6 +304,10 @@ export function Dashboard() {
     const isCompleted = completedTodayIds.has(gameId);
     
     if (isCompleted) {
+      if (!window.confirm('Are you sure you want to undo your progress for today? This will remove your completion for this game.')) {
+        setIsMarking(null);
+        return;
+      }
       const { error } = await supabase.rpc('undo_game_completed', {
         p_game_id: gameId,
         p_local_date: getLocalDateStr(new Date())
@@ -875,12 +879,12 @@ try {
               <div className="space-y-2">
                 <label className="text-sm font-bold text-foreground">Paste your results (Optional)</label>
                 <textarea
-                  placeholder={`e.g. Wordle 1,024 3/6\n\n⬛🟨⬛⬛🟩\n🟩🟩🟩🟩🟩`}
+                  placeholder={`Paste your result here...`}
                   value={shareText}
                   onChange={(e) => setShareText(e.target.value)}
                   className="w-full px-4 py-3 border bg-background border-border rounded-xl text-foreground focus:outline-none focus:ring-2 focus:ring-primary shadow-sm min-h-[120px] resize-none"
                 />
-                <p className="text-xs text-muted-foreground">Share your Wordle or Connections emojis to keep track of your history!</p>
+                <p className="text-xs text-muted-foreground">Paste the result your game gives you to keep track of your history!</p>
               </div>
 
               <div className="flex justify-end gap-3 pt-2">
