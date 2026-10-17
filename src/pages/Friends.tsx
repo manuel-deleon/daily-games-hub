@@ -25,6 +25,11 @@ export function Friends() {
     return undefined;
   };
 
+  const formatUsername = (name: string, max = 18) => {
+    if (!name) return '';
+    return name.length > max ? `${name.slice(0, max)}…` : name;
+  };
+
   const [activeTab, setActiveTab] = useState<'ranking' | 'following' | 'followers' | 'search'>('ranking');
   const [currentUser, setCurrentUser] = useState<string | null>(null);
   
@@ -396,7 +401,7 @@ return (
                       </div>
                       <div className="flex items-center text-[#D4A336] font-extrabold bg-[#D4A336]/10 px-3 py-1.5 rounded-xl">
                         <Flame className="w-5 h-5 mr-1.5" />
-                        {user.global_streak}
+                        {rankingMode === 'highest' ? (user.highest_streak ?? user.global_streak) : user.global_streak}
                       </div>
                     </div>
                   );
@@ -420,8 +425,8 @@ return (
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {following.map(user => (
-                  <div key={user.relationship_id} className="flex items-center justify-between p-4 bg-background border border-border rounded-xl hover:border-primary/30 transition-colors">
-                    <div className="flex items-center space-x-4">
+                  <div key={user.relationship_id} className="flex items-center justify-between p-4 bg-background border border-border rounded-xl hover:border-primary/30 transition-colors gap-3">
+                    <div className="flex items-center space-x-4 min-w-0 flex-1">
                       <div className="h-12 w-12 rounded-full bg-muted overflow-hidden flex-shrink-0 cursor-pointer border border-border" onClick={() => openCatalog(user)}>
                         {user.avatar_url ? (
                           <img src={user.avatar_url} alt="" className="w-full h-full object-cover" />
@@ -431,17 +436,19 @@ return (
                           </div>
                         )}
                       </div>
-                      <div>
-                        <h4 className="font-bold text-foreground cursor-pointer hover:underline" onClick={() => openCatalog(user)}>{user.username}</h4>
+                      <div className="min-w-0 flex-1">
+                        <h4 className="font-bold text-foreground cursor-pointer hover:underline truncate" title={user.username} onClick={() => openCatalog(user)}>
+                          {formatUsername(user.username, 18)}
+                        </h4>
                         <div className="flex items-center text-sm text-[#D4A336] font-bold mt-0.5">
-                          <Flame className="w-3.5 h-3.5 mr-1" />
+                          <Flame className="w-3.5 h-3.5 mr-1 flex-shrink-0" />
                           {user.global_streak} streak
                         </div>
                       </div>
                     </div>
                     <button 
                       onClick={() => handleUnfollow(user.relationship_id)}
-                      className="px-3 py-1.5 bg-muted text-muted-foreground hover:bg-destructive/10 hover:text-destructive text-sm font-bold rounded-lg transition-colors"
+                      className="ml-auto flex-shrink-0 px-3 py-1.5 bg-muted text-muted-foreground hover:bg-destructive/10 hover:text-destructive text-sm font-bold rounded-lg transition-colors"
                     >
                       Unfollow
                     </button>
@@ -468,8 +475,8 @@ return (
                 {followers.map(user => {
                   const alreadyFollowing = isFollowing(user.id);
                   return (
-                    <div key={user.relationship_id} className="flex items-center justify-between p-4 bg-background border border-border rounded-xl hover:border-primary/30 transition-colors">
-                      <div className="flex items-center space-x-4">
+                    <div key={user.relationship_id} className="flex items-center justify-between p-4 bg-background border border-border rounded-xl hover:border-primary/30 transition-colors gap-3">
+                      <div className="flex items-center space-x-4 min-w-0 flex-1">
                         <div className="h-12 w-12 rounded-full bg-muted overflow-hidden flex-shrink-0 cursor-pointer border border-border" onClick={() => openCatalog(user)}>
                           {user.avatar_url ? (
                             <img src={user.avatar_url} alt="" className="w-full h-full object-cover" />
@@ -479,20 +486,22 @@ return (
                             </div>
                           )}
                         </div>
-                        <div>
-                          <h4 className="font-bold text-foreground cursor-pointer hover:underline" onClick={() => openCatalog(user)}>{user.username}</h4>
+                        <div className="min-w-0 flex-1">
+                          <h4 className="font-bold text-foreground cursor-pointer hover:underline truncate" title={user.username} onClick={() => openCatalog(user)}>
+                            {formatUsername(user.username, 18)}
+                          </h4>
                           <span className="text-xs font-medium text-muted-foreground">Started following you</span>
                         </div>
                       </div>
                       {!alreadyFollowing ? (
                         <button 
                           onClick={() => handleFollow(user.id)}
-                          className="px-4 py-2 bg-primary/10 text-primary hover:bg-primary hover:text-primary-foreground text-sm font-bold rounded-lg transition-colors"
+                          className="ml-auto flex-shrink-0 px-5 py-2.5 bg-primary/10 text-primary hover:bg-primary hover:text-primary-foreground text-sm font-bold rounded-xl transition-colors shadow-sm"
                         >
                           Follow back
                         </button>
                       ) : (
-                        <span className="text-sm font-bold text-muted-foreground px-4 py-2 bg-muted rounded-lg">Friends</span>
+                        <span className="ml-auto flex-shrink-0 text-sm font-bold text-muted-foreground px-5 py-2.5 bg-muted rounded-xl">Friends</span>
                       )}
                     </div>
                   );
@@ -528,8 +537,8 @@ return (
                 searchResults.map(user => {
                   const alreadyFollowing = isFollowing(user.id);
                   return (
-                    <div key={user.id} className="flex items-center justify-between p-4 bg-background border border-border rounded-xl hover:border-primary/30 transition-colors">
-                      <div className="flex items-center space-x-4">
+                    <div key={user.id} className="flex items-center justify-between p-4 bg-background border border-border rounded-xl hover:border-primary/30 transition-colors gap-3">
+                      <div className="flex items-center space-x-4 min-w-0 flex-1">
                         <div className="h-12 w-12 rounded-full bg-muted overflow-hidden flex-shrink-0 cursor-pointer border border-border" onClick={() => openCatalog(user)}>
                           {user.avatar_url ? (
                             <img src={user.avatar_url} alt="" className="w-full h-full object-cover" />
@@ -539,16 +548,18 @@ return (
                             </div>
                           )}
                         </div>
-                        <div>
-                          <h4 className="font-bold text-foreground cursor-pointer hover:underline" onClick={() => openCatalog(user)}>{user.username}</h4>
+                        <div className="min-w-0 flex-1">
+                          <h4 className="font-bold text-foreground cursor-pointer hover:underline truncate" title={user.username} onClick={() => openCatalog(user)}>
+                            {formatUsername(user.username, 18)}
+                          </h4>
                         </div>
                       </div>
                       {alreadyFollowing ? (
-                        <span className="text-sm font-bold text-muted-foreground px-4 py-2 bg-muted rounded-lg border border-border">Following</span>
+                        <span className="ml-auto flex-shrink-0 text-sm font-bold text-muted-foreground px-5 py-2.5 bg-muted rounded-xl border border-border">Following</span>
                       ) : (
                         <button 
                           onClick={() => handleFollow(user.id)}
-                          className="flex items-center px-4 py-2 bg-primary text-primary-foreground hover:opacity-90 text-sm font-bold rounded-lg transition-colors shadow-sm"
+                          className="ml-auto flex-shrink-0 flex items-center px-5 py-2.5 bg-primary text-primary-foreground hover:opacity-90 text-sm font-bold rounded-xl transition-colors shadow-sm"
                         >
                           <UserPlus className="w-4 h-4 mr-2" />
                           Follow
@@ -567,9 +578,9 @@ return (
       {selectedUser && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm">
           <div className="bg-card w-full max-w-2xl rounded-3xl shadow-2xl border border-border overflow-hidden flex flex-col max-h-[85vh] animate-in fade-in zoom-in-95 duration-200">
-            <div className="flex justify-between items-center p-6 border-b border-border bg-muted/30">
-              <div className="flex items-center space-x-4">
-                <div className="h-12 w-12 rounded-full bg-background overflow-hidden border border-border shadow-sm">
+            <div className="flex justify-between items-start p-5 sm:p-6 border-b border-border bg-muted/30 gap-3">
+              <div className="flex items-center space-x-3 sm:space-x-4 min-w-0 flex-1">
+                <div className="h-12 w-12 rounded-full bg-background overflow-hidden border border-border shadow-sm flex-shrink-0">
                   {selectedUser.avatar_url ? (
                     <img src={selectedUser.avatar_url} alt="" className="w-full h-full object-cover" />
                   ) : (
@@ -578,38 +589,46 @@ return (
                     </div>
                   )}
                 </div>
-                <div>
-                  <div className="flex items-center space-x-3 mb-1">
-                      <h3 className="text-xl font-extrabold text-foreground leading-none">{selectedUser.username}</h3>
-                      {selectedUser.id !== currentUser && !isFollowing(selectedUser.id) && (
-                        <button
-                          onClick={() => handleFollow(selectedUser.id)}
-                          className="px-3 py-1 bg-primary text-primary-foreground text-xs font-bold rounded-full hover:opacity-90 transition-opacity shadow-sm flex items-center"
-                        >
-                          <UserPlus className="w-3 h-3 mr-1" /> Follow
-                        </button>
-                      )}
-                      {selectedUser.id !== currentUser && isFollowing(selectedUser.id) && (
-                        <span className="px-3 py-1 bg-muted text-muted-foreground border border-border text-xs font-bold rounded-full shadow-sm">
-                          Following
-                        </span>
-                      )}
-                    </div>
-                  <div className="flex flex-col sm:flex-row sm:items-center sm:space-x-4 space-y-1 sm:space-y-0 mt-2">
-                    <span className="text-sm font-bold text-[#D4A336] flex items-center bg-[#D4A336]/10 px-2.5 py-1 rounded-lg w-fit">
-                      <Flame className="w-4 h-4 mr-1.5" />
+                <div className="min-w-0 flex-1">
+                  <h3 className="text-xl font-extrabold text-foreground leading-tight truncate" title={selectedUser.username}>
+                    {formatUsername(selectedUser.username, 20)}
+                  </h3>
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:space-x-3 space-y-1 sm:space-y-0 mt-1.5">
+                    <span className="text-xs sm:text-sm font-bold text-[#D4A336] flex items-center bg-[#D4A336]/10 px-2 py-0.5 rounded-lg w-fit">
+                      <Flame className="w-3.5 h-3.5 mr-1" />
                       Global Streak: {selectedUser.global_streak || 0}
                     </span>
-                    <span className="text-sm font-bold text-orange-500 flex items-center bg-orange-500/10 px-2.5 py-1 rounded-lg w-fit">
-                      <Flame className="w-4 h-4 mr-1.5" />
+                    <span className="text-xs sm:text-sm font-bold text-orange-500 flex items-center bg-orange-500/10 px-2 py-0.5 rounded-lg w-fit">
+                      <Flame className="w-3.5 h-3.5 mr-1" />
                       Personal Best: {selectedUser.highest_streak || selectedUser.global_streak || 0}
                     </span>
                   </div>
                 </div>
               </div>
-              <button onClick={() => setSelectedUser(null)} className="text-muted-foreground hover:text-foreground bg-background p-1.5 rounded-full border border-border shadow-sm transition-colors">
-                <X className="w-5 h-5" />
-              </button>
+
+              {/* Actions column anchored to the far right */}
+              <div className="flex flex-col items-end gap-2 flex-shrink-0 ml-auto">
+                <button 
+                  onClick={() => setSelectedUser(null)} 
+                  className="text-muted-foreground hover:text-foreground bg-background p-1.5 rounded-full border border-border shadow-sm transition-colors"
+                  title="Close"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+                {selectedUser.id !== currentUser && !isFollowing(selectedUser.id) && (
+                  <button
+                    onClick={() => handleFollow(selectedUser.id)}
+                    className="px-4 py-2 bg-primary text-primary-foreground text-sm font-bold rounded-xl hover:opacity-90 transition-opacity shadow-sm flex items-center whitespace-nowrap"
+                  >
+                    <UserPlus className="w-4 h-4 mr-1.5" /> Follow
+                  </button>
+                )}
+                {selectedUser.id !== currentUser && isFollowing(selectedUser.id) && (
+                  <span className="px-4 py-2 bg-muted text-muted-foreground border border-border text-sm font-bold rounded-xl shadow-sm whitespace-nowrap">
+                    Following
+                  </span>
+                )}
+              </div>
             </div>
             
             <div className="p-6 overflow-y-auto flex-1">
