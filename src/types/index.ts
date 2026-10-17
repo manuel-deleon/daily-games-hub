@@ -7,6 +7,7 @@ export interface Profile {
   highest_streak: number;
   created_at: string;
   is_admin?: boolean;
+  global_last_completed_date?: string | null;
 }
 
 export interface GlobalGame {
