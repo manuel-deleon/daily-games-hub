@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '../lib/supabase';
-import { Flame, Play, CheckCircle2, Circle, Plus, X, Loader2, Pencil, Trash2, Gamepad2, Upload, Pin } from 'lucide-react';
+import { Flame, Play, CheckCircle2, Circle, Plus, X, Loader2, Pencil, Trash2, Gamepad2, Upload, Pin, Copy, Check, Trophy, XCircle } from 'lucide-react';
 import type { Game } from '../types';
 
 export function Dashboard() {
@@ -162,23 +162,36 @@ export function Dashboard() {
   // --- Local UI state ---
   const [isMarking, setIsMarking] = useState<string | null>(null);
   const [selectedHistoryGame, setSelectedHistoryGame] = useState<Game | null>(null);
-  const [historyProgress, setHistoryProgress] = useState<{ completed_date: string, share_text: string | null }[]>([]);
+  const [historyProgress, setHistoryProgress] = useState<{ completed_date: string, share_text: string | null, won?: boolean | null }[]>([]);
+  const [copiedHistoryIndex, setCopiedHistoryIndex] = useState<number | null>(null);
   const [showShareModal, setShowShareModal] = useState<string | null>(null);
+  const [isWon, setIsWon] = useState<boolean>(true);
   const [shareText, setShareText] = useState("");
   const [isSavingShare, setIsSavingShare] = useState(false);
 
   const openHistory = async (game: Game) => {
     setSelectedHistoryGame(game);
+    setCopiedHistoryIndex(null);
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) return;
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('daily_progress')
-      .select('completed_date, share_text')
+      .select('completed_date, share_text, won')
       .eq('user_id', session.user.id)
       .eq('game_id', game.id)
       .order('completed_date', { ascending: false });
     
-    setHistoryProgress(data || []);
+    if (!error && data) {
+      setHistoryProgress(data);
+    } else {
+      const fallback = await supabase
+        .from('daily_progress')
+        .select('completed_date, share_text')
+        .eq('user_id', session.user.id)
+        .eq('game_id', game.id)
+        .order('completed_date', { ascending: false });
+      setHistoryProgress(fallback.data || []);
+    }
   };
 
 
@@ -299,15 +312,14 @@ export function Dashboard() {
   const handleMarkCompleted = async (e: React.MouseEvent, gameId: string) => {
     e.preventDefault();
     e.stopPropagation();
-    setIsMarking(gameId);
     
     const isCompleted = completedTodayIds.has(gameId);
     
     if (isCompleted) {
       if (!window.confirm('Are you sure you want to undo your progress for today? This will remove your completion for this game.')) {
-        setIsMarking(null);
         return;
       }
+      setIsMarking(gameId);
       const { error } = await supabase.rpc('undo_game_completed', {
         p_game_id: gameId,
         p_local_date: getLocalDateStr(new Date())
@@ -315,41 +327,72 @@ export function Dashboard() {
       if (!error) {
         invalidateAll();
       } else {
-        console.error("Error undoing:", error); alert("Error deshaciendo progreso: " + error.message);
+        console.error("Error undoing:", error);
+        alert("Error undoing progress: " + error.message);
       }
+      setIsMarking(null);
     } else {
-      const { error } = await supabase.rpc('mark_game_completed', {
-        p_game_id: gameId,
-        p_local_date: getLocalDateStr(new Date())
-      });
-  
-      if (!error) {
-        invalidateAll();
-        setShowShareModal(gameId);
-      } else {
-        console.error("Error marcando completado:", error); alert("Error guardando progreso: " + error.message);
-      }
+      setIsWon(true);
+      setShareText("");
+      setShowShareModal(gameId);
     }
-    
-    setIsMarking(null);
   };
 
-  
   const handleSaveShareText = async () => {
     if (!showShareModal) return;
     setIsSavingShare(true);
-    const { data: { session } } = await supabase.auth.getSession();
-    if (session) {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
       const todayStr = getLocalDateStr(new Date());
-      await supabase.from('daily_progress')
-        .update({ share_text: shareText })
-        .eq('user_id', session.user.id)
-        .eq('game_id', showShareModal)
-        .eq('completed_date', todayStr);
+
+      // 1. Intentar la llamada atómica única a mark_game_completed (con soporte p_won y p_share_text)
+      const { error: rpcError } = await supabase.rpc('mark_game_completed', {
+        p_game_id: showShareModal,
+        p_local_date: todayStr,
+        p_won: isWon,
+        p_share_text: shareText.trim() || null
+      });
+
+      // 2. Si la función en Supabase aún tiene la firma antigua de 2 argumentos, fallback transparente:
+      if (rpcError) {
+        if (rpcError.message?.includes('p_won') || rpcError.code === 'PGRST202') {
+          if (isWon) {
+            await supabase.rpc('mark_game_completed', {
+              p_game_id: showShareModal,
+              p_local_date: todayStr
+            });
+            if (shareText.trim()) {
+              await supabase.from('daily_progress')
+                .update({ share_text: shareText.trim(), won: true })
+                .eq('user_id', session.user.id)
+                .eq('game_id', showShareModal)
+                .eq('completed_date', todayStr);
+            }
+          } else {
+            await supabase.from('daily_progress').upsert({
+              user_id: session.user.id,
+              game_id: showShareModal,
+              completed_date: todayStr,
+              share_text: shareText.trim() || null,
+              won: false
+            }, { onConflict: 'user_id,game_id,completed_date' });
+            await supabase.from('user_games').update({ current_streak: 0 }).eq('id', showShareModal);
+          }
+        } else {
+          throw rpcError;
+        }
+      }
+
+      invalidateAll();
+      setShowShareModal(null);
+      setShareText("");
+    } catch (err: any) {
+      console.error("Error saving game completion:", err);
+      alert("Error saving progress: " + (err.message || 'Unknown error'));
+    } finally {
+      setIsSavingShare(false);
     }
-    setIsSavingShare(false);
-    setShowShareModal(null);
-    setShareText("");
   };
 
   // Auto-extract name from URL
@@ -861,53 +904,105 @@ try {
         </div>
       )}
 
-      {/* Share Modal */}
-      {showShareModal && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm">
-          <div className="bg-card w-full max-w-md rounded-3xl shadow-2xl border border-border overflow-hidden animate-in fade-in zoom-in-95 duration-200">
-            <div className="flex justify-between items-center p-6 border-b border-border bg-muted/30">
-              <h3 className="text-xl font-extrabold text-foreground tracking-tight">Game Completed!</h3>
-              <button 
-                onClick={() => setShowShareModal(null)}
-                className="text-muted-foreground hover:text-foreground transition-colors bg-background p-1.5 rounded-full border border-border shadow-sm"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-            
-            <div className="p-6 space-y-5">
-              <div className="space-y-2">
-                <label className="text-sm font-bold text-foreground">Paste your results (Optional)</label>
-                <textarea
-                  placeholder={`Paste your result here...`}
-                  value={shareText}
-                  onChange={(e) => setShareText(e.target.value)}
-                  className="w-full px-4 py-3 border bg-background border-border rounded-xl text-foreground focus:outline-none focus:ring-2 focus:ring-primary shadow-sm min-h-[120px] resize-none"
-                />
-                <p className="text-xs text-muted-foreground">Paste the result your game gives you to keep track of your history!</p>
-              </div>
-
-              <div className="flex justify-end gap-3 pt-2">
-                <button
-                  type="button"
+      {/* Log / Share Modal */}
+      {showShareModal && (() => {
+        const activeGame = games.find(g => g.id === showShareModal);
+        const gameName = activeGame ? (activeGame.custom_name || activeGame.global_games?.name || 'Game') : 'Game';
+        const gameLogo = activeGame ? getGameLogo(activeGame) : undefined;
+        return (
+          <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm">
+            <div className="bg-card w-full max-w-md rounded-3xl shadow-2xl border border-border overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+              <div className="flex justify-between items-center p-6 border-b border-border bg-muted/30">
+                <div className="flex items-center space-x-3 min-w-0">
+                  {gameLogo ? (
+                    <img src={gameLogo} alt="" className="w-10 h-10 rounded-xl object-cover border border-border shadow-sm flex-shrink-0" />
+                  ) : (
+                    <div className="w-10 h-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center font-bold flex-shrink-0">
+                      {gameName.charAt(0).toUpperCase()}
+                    </div>
+                  )}
+                  <div className="min-w-0">
+                    <h3 className="text-lg font-extrabold text-foreground tracking-tight truncate leading-tight">
+                      Log Result: {gameName}
+                    </h3>
+                    <p className="text-xs text-muted-foreground font-medium">Record your daily score and keep streaks</p>
+                  </div>
+                </div>
+                <button 
                   onClick={() => setShowShareModal(null)}
-                  className="px-5 py-2.5 text-sm font-bold text-foreground bg-background border border-border hover:bg-muted rounded-xl transition-colors shadow-sm"
+                  className="text-muted-foreground hover:text-foreground transition-colors bg-background p-1.5 rounded-full border border-border shadow-sm flex-shrink-0"
                 >
-                  Skip
+                  <X className="w-5 h-5" />
                 </button>
-                <button
-                  type="button"
-                  onClick={handleSaveShareText}
-                  disabled={isSavingShare}
-                  className="flex items-center justify-center min-w-[120px] px-5 py-2.5 text-sm font-bold text-primary-foreground bg-primary hover:opacity-90 rounded-xl transition-colors disabled:opacity-50 shadow-sm"
-                >
-                  {isSavingShare ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Save'}
-                </button>
+              </div>
+              
+              <div className="p-6 space-y-5">
+                {/* Result selection (Won vs Lost) */}
+                <div className="space-y-2">
+                  <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Result</label>
+                  <div className="grid grid-cols-2 gap-3">
+                    <button
+                      type="button"
+                      onClick={() => setIsWon(true)}
+                      className={`flex items-center justify-center gap-2 p-3 rounded-xl border font-bold text-sm transition-all ${
+                        isWon
+                          ? 'bg-[#709176]/15 text-[#709176] border-[#709176] ring-1 ring-[#709176]'
+                          : 'bg-background border-border text-muted-foreground hover:bg-muted'
+                      }`}
+                    >
+                      <Trophy className="w-4 h-4 text-[#709176]" />
+                      <span>Won</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setIsWon(false)}
+                      className={`flex items-center justify-center gap-2 p-3 rounded-xl border font-bold text-sm transition-all ${
+                        !isWon
+                          ? 'bg-destructive/15 text-destructive border-destructive ring-1 ring-destructive'
+                          : 'bg-background border-border text-muted-foreground hover:bg-muted'
+                      }`}
+                    >
+                      <XCircle className="w-4 h-4 text-destructive" />
+                      <span>Lost</span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Paste results */}
+                <div className="space-y-2">
+                  <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Paste your results (Optional)</label>
+                  <textarea
+                    placeholder="Paste the game result text here..."
+                    value={shareText}
+                    onChange={(e) => setShareText(e.target.value)}
+                    className="w-full px-4 py-3 border bg-background border-border rounded-xl text-foreground focus:outline-none focus:ring-2 focus:ring-primary shadow-sm min-h-[110px] resize-none font-mono text-xs sm:text-sm"
+                  />
+                  <p className="text-xs text-muted-foreground">Paste what the game generated to view and compare later!</p>
+                </div>
+
+                <div className="flex justify-end gap-3 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowShareModal(null)}
+                    className="px-5 py-2.5 text-sm font-bold text-foreground bg-background border border-border hover:bg-muted rounded-xl transition-colors shadow-sm"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleSaveShareText}
+                    disabled={isSavingShare}
+                    className="flex items-center justify-center min-w-[120px] px-5 py-2.5 text-sm font-bold text-primary-foreground bg-primary hover:opacity-90 rounded-xl transition-colors disabled:opacity-50 shadow-sm"
+                  >
+                    {isSavingShare ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Save Result'}
+                  </button>
+                </div>
               </div>
             </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* History Modal */}
       {selectedHistoryGame && (
@@ -945,9 +1040,43 @@ try {
                 <div className="space-y-3">
                   {historyProgress.map((prog, i) => (
                     <div key={i} className="p-4 rounded-xl border border-border bg-muted/30 flex flex-col space-y-3">
-                      <div className="flex items-center space-x-2 text-sm font-bold text-foreground">
-                        <CheckCircle2 className="w-4 h-4 text-primary" />
-                        <span>{new Date(prog.completed_date + 'T00:00:00').toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })}</span>
+                      <div className="flex items-center justify-between text-sm font-bold text-foreground">
+                        <div className="flex items-center space-x-2">
+                          {prog.won === false ? (
+                            <XCircle className="w-4 h-4 text-destructive" />
+                          ) : (
+                            <CheckCircle2 className="w-4 h-4 text-[#709176]" />
+                          )}
+                          <span>{new Date(prog.completed_date + 'T00:00:00').toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })}</span>
+                          {prog.won === false && (
+                            <span className="text-[10px] uppercase font-black bg-destructive/10 text-destructive border border-destructive/20 px-1.5 py-0.5 rounded-md">Lost</span>
+                          )}
+                        </div>
+
+                        {prog.share_text && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              navigator.clipboard.writeText(prog.share_text!);
+                              setCopiedHistoryIndex(i);
+                              setTimeout(() => setCopiedHistoryIndex(null), 2000);
+                            }}
+                            className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold border border-border bg-background hover:bg-muted text-muted-foreground hover:text-foreground transition-colors shadow-sm"
+                            title="Copy result"
+                          >
+                            {copiedHistoryIndex === i ? (
+                              <>
+                                <Check className="w-3.5 h-3.5 text-[#709176]" />
+                                <span className="text-[#709176]">Copied!</span>
+                              </>
+                            ) : (
+                              <>
+                                <Copy className="w-3.5 h-3.5" />
+                                <span>Copy</span>
+                              </>
+                            )}
+                          </button>
+                        )}
                       </div>
                       {prog.share_text && (
                         <div className="bg-background border border-border rounded-lg p-3 text-sm whitespace-pre-wrap font-mono text-muted-foreground">

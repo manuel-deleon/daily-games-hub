@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
-import { Search, UserPlus, Users, Flame, Copy, Loader2, CheckCircle2, X, Trophy, Hash, Gamepad2 , Circle } from 'lucide-react';
+import { Search, UserPlus, Users, Flame, Copy, Loader2, CheckCircle2, X, Trophy, Hash, Gamepad2 , Circle, Lock, ArrowLeftRight, Check } from 'lucide-react';
 import type { Profile, Game } from '../types';
 import { useTheme } from '../hooks/useTheme';
 
@@ -63,9 +63,22 @@ export function Friends() {
   const [copyingId, setCopyingId] = useState<string | null>(null);
   const [selectedHistoryGame, setSelectedHistoryGame] = useState<Game | null>(null);
   const [historyProgress, setHistoryProgress] = useState<{ completed_date: string, share_text: string | null }[]>([]);
+  const [copiedHistoryIndex, setCopiedHistoryIndex] = useState<number | null>(null);
+
+  // Compare State
+  const [comparingGame, setComparingGame] = useState<Game | null>(null);
+  const [isLoadingComparison, setIsLoadingComparison] = useState(false);
+  const [comparisonDays, setComparisonDays] = useState<{ date: string; myText: string | null; friendText: string | null; }[]>([]);
+  const [copiedCompareSide, setCopiedCompareSide] = useState<string | null>(null);
+  const [myMatchingGameId, setMyMatchingGameId] = useState<string | null>(null);
 
   const openHistory = async (game: Game) => {
+    if (game.is_private) {
+      alert("This player has set this game's history to private.");
+      return;
+    }
     setSelectedHistoryGame(game);
+    setCopiedHistoryIndex(null);
     if (!selectedUser) return;
     const { data } = await supabase
       .from('daily_progress')
@@ -75,6 +88,76 @@ export function Friends() {
       .order('completed_date', { ascending: false });
     
     setHistoryProgress(data || []);
+  };
+
+  const openCompare = async (friendGame: Game) => {
+    if (friendGame.is_private) {
+      alert("This game's history is set to private.");
+      return;
+    }
+    if (!selectedUser || !currentUser) return;
+
+    setComparingGame(friendGame);
+    setIsLoadingComparison(true);
+    setComparisonDays([]);
+    setCopiedCompareSide(null);
+
+    try {
+      // 1. Find my game corresponding to this friendGame (match by global_game_id)
+      const { data: myGame } = await supabase
+        .from('user_games')
+        .select('id')
+        .eq('user_id', currentUser)
+        .eq('global_game_id', friendGame.global_game_id)
+        .maybeSingle();
+
+      setMyMatchingGameId(myGame ? myGame.id : null);
+
+      // 2. Fetch friend's progress
+      const { data: friendProgress } = await supabase
+        .from('daily_progress')
+        .select('completed_date, share_text')
+        .eq('user_id', selectedUser.id)
+        .eq('game_id', friendGame.id);
+
+      // 3. Fetch my progress (if I have this game in my catalog)
+      let myProgress: { completed_date: string; share_text: string | null }[] = [];
+      if (myGame) {
+        const { data: mProg } = await supabase
+          .from('daily_progress')
+          .select('completed_date, share_text')
+          .eq('user_id', currentUser)
+          .eq('game_id', myGame.id);
+        if (mProg) myProgress = mProg;
+      }
+
+      // 4. Merge by date, keeping ONLY days where at least one side pasted text
+      const map = new Map<string, { myText: string | null; friendText: string | null }>();
+
+      (friendProgress || []).forEach(p => {
+        if (p.share_text && p.share_text.trim()) {
+          map.set(p.completed_date, { myText: null, friendText: p.share_text.trim() });
+        }
+      });
+
+      (myProgress || []).forEach(p => {
+        if (p.share_text && p.share_text.trim()) {
+          const entry = map.get(p.completed_date) || { myText: null, friendText: null };
+          entry.myText = p.share_text.trim();
+          map.set(p.completed_date, entry);
+        }
+      });
+
+      const merged = Array.from(map.entries())
+        .map(([date, data]) => ({ date, ...data }))
+        .sort((a, b) => b.date.localeCompare(a.date));
+
+      setComparisonDays(merged);
+    } catch (err) {
+      console.error('Error fetching comparison:', err);
+    } finally {
+      setIsLoadingComparison(false);
+    }
   };
 
 
@@ -648,35 +731,82 @@ return (
                     const useLightFallback = isDefaultDark && theme === 'light';
                     
                     return (
-                      <div key={game.id} onClick={() => openHistory(game)} className={`p-4 rounded-2xl flex flex-col justify-between h-36 transition-transform hover:-translate-y-1 shadow-sm border cursor-pointer relative ${useLightFallback ? 'bg-muted border-border' : 'border-transparent'}`} style={useLightFallback ? undefined : { backgroundColor: dbColor }}>
-                        <div className="flex justify-between items-start">
+                      <div
+                        key={game.id}
+                        onClick={() => {
+                          if (game.is_private) return;
+                          openHistory(game);
+                        }}
+                        className={`p-4 rounded-2xl flex flex-col justify-between min-h-[150px] transition-transform hover:-translate-y-1 shadow-sm border ${
+                          game.is_private ? 'cursor-default' : 'cursor-pointer'
+                        } relative ${useLightFallback ? 'bg-muted border-border' : 'border-transparent'}`}
+                        style={useLightFallback ? undefined : { backgroundColor: dbColor }}
+                      >
+                        <div className="flex justify-between items-start gap-2">
                           <div className="flex items-center space-x-2 min-w-0">
                             {getGameLogo(game) && (
-                               <img src={getGameLogo(game)} alt="" className={`w-8 h-8 rounded-lg object-cover shadow-sm ${useLightFallback ? 'bg-background' : 'bg-white/20'}`} />
+                              <img src={getGameLogo(game)} alt="" className={`w-8 h-8 rounded-lg object-cover shadow-sm flex-shrink-0 ${useLightFallback ? 'bg-background' : 'bg-white/20'}`} />
                             )}
-                            <h4 className={`font-bold text-lg truncate ${useLightFallback ? 'text-foreground' : 'text-white'}`}>{(game.custom_name || game.global_games?.name || "")}</h4>
+                            <h4 className={`font-bold text-lg truncate ${useLightFallback ? 'text-foreground' : 'text-white'}`}>
+                              {(game.custom_name || game.global_games?.name || "")}
+                            </h4>
                           </div>
                           
-                          <div className={`flex items-center px-2 py-1 rounded-lg text-xs font-bold backdrop-blur-sm ${useLightFallback ? 'bg-background/50 text-foreground border border-border/50' : 'bg-black/20 text-white/90'}`} title="Streak in this game">
-                            <Flame className="w-3.5 h-3.5 mr-1 text-[#D4A336]" />
-                            {game.current_streak}
+                          <div className="flex items-center gap-1.5 flex-shrink-0">
+                            {game.is_private && (
+                              <span className="flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-lg bg-black/40 text-amber-300 backdrop-blur-sm" title="History is private">
+                                <Lock className="w-3 h-3" /> Private
+                              </span>
+                            )}
+                            <div className={`flex items-center px-2 py-1 rounded-lg text-xs font-bold backdrop-blur-sm ${useLightFallback ? 'bg-background/50 text-foreground border border-border/50' : 'bg-black/20 text-white/90'}`} title="Streak in this game">
+                              <Flame className="w-3.5 h-3.5 mr-1 text-[#D4A336]" />
+                              {game.current_streak}
+                            </div>
                           </div>
                         </div>
                         
-                        <div className="flex justify-end mt-4">
-                          {alreadyHaveIt ? (
-                            <div className={`flex items-center px-4 py-2 rounded-xl text-sm font-bold backdrop-blur-sm ${useLightFallback ? 'bg-background/50 text-foreground border border-border/50' : 'bg-white/20 text-white'}`}>
-                              <CheckCircle2 className="w-4 h-4 mr-1.5" />Already in catalog</div>
+                        <div className="flex items-center justify-between gap-2 mt-4 flex-wrap">
+                          {/* Compare Button */}
+                          {game.is_private ? (
+                            <span className={`text-xs italic flex items-center gap-1 ${useLightFallback ? 'text-muted-foreground' : 'text-white/70'}`}>
+                              <Lock className="w-3 h-3" /> History private
+                            </span>
                           ) : (
                             <button
-                                onClick={(e) => { e.stopPropagation(); handleCopyGame(game); }}
-                              disabled={copyingId === game.id}
-                              className={`flex items-center px-4 py-2 rounded-xl text-sm font-bold transition-colors disabled:opacity-50 backdrop-blur-sm ${useLightFallback ? 'bg-primary/10 hover:bg-primary/20 text-primary border border-primary/20' : 'bg-black/30 hover:bg-black/50 text-white'}`}
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                openCompare(game);
+                              }}
+                              className={`flex items-center px-3 py-1.5 rounded-xl text-xs font-bold transition-colors backdrop-blur-sm shadow-sm ${
+                                useLightFallback
+                                  ? 'bg-background/80 hover:bg-background text-foreground border border-border'
+                                  : 'bg-black/30 hover:bg-black/50 text-white border border-white/10'
+                              }`}
                             >
-                              {copyingId === game.id ? <Loader2 className="w-4 h-4 mr-1.5 animate-spin" /> : <Copy className="w-4 h-4 mr-1.5" />}
-                              Copy to my catalog
+                              <ArrowLeftRight className="w-3.5 h-3.5 mr-1.5" />
+                              Compare
                             </button>
                           )}
+
+                          {/* Copy / Already in Catalog */}
+                          <div>
+                            {alreadyHaveIt ? (
+                              <div className={`flex items-center px-3 py-1.5 rounded-xl text-xs font-bold backdrop-blur-sm ${useLightFallback ? 'bg-background/50 text-foreground border border-border/50' : 'bg-white/20 text-white'}`}>
+                                <CheckCircle2 className="w-3.5 h-3.5 mr-1" /> Added
+                              </div>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={(e) => { e.stopPropagation(); handleCopyGame(game); }}
+                                disabled={copyingId === game.id}
+                                className={`flex items-center px-3 py-1.5 rounded-xl text-xs font-bold transition-colors disabled:opacity-50 backdrop-blur-sm ${useLightFallback ? 'bg-primary/10 hover:bg-primary/20 text-primary border border-primary/20' : 'bg-black/30 hover:bg-black/50 text-white'}`}
+                              >
+                                {copyingId === game.id ? <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" /> : <Copy className="w-3.5 h-3.5 mr-1" />}
+                                Add
+                              </button>
+                            )}
+                          </div>
                         </div>
                       </div>
                     );
@@ -724,9 +854,35 @@ return (
                 <div className="space-y-3">
                   {historyProgress.map((prog, i) => (
                     <div key={i} className="p-4 rounded-xl border border-border bg-muted/30 flex flex-col space-y-3">
-                      <div className="flex items-center space-x-2 text-sm font-bold text-foreground">
-                        <CheckCircle2 className="w-4 h-4 text-primary" />
-                        <span>{new Date(prog.completed_date + 'T00:00:00').toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })}</span>
+                      <div className="flex items-center justify-between text-sm font-bold text-foreground">
+                        <div className="flex items-center space-x-2">
+                          <CheckCircle2 className="w-4 h-4 text-primary" />
+                          <span>{new Date(prog.completed_date + 'T00:00:00').toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })}</span>
+                        </div>
+                        {prog.share_text && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              navigator.clipboard.writeText(prog.share_text!);
+                              setCopiedHistoryIndex(i);
+                              setTimeout(() => setCopiedHistoryIndex(null), 2000);
+                            }}
+                            className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold border border-border bg-background hover:bg-muted text-muted-foreground hover:text-foreground transition-colors shadow-sm"
+                            title="Copy result"
+                          >
+                            {copiedHistoryIndex === i ? (
+                              <>
+                                <Check className="w-3.5 h-3.5 text-[#709176]" />
+                                <span className="text-[#709176]">Copied!</span>
+                              </>
+                            ) : (
+                              <>
+                                <Copy className="w-3.5 h-3.5" />
+                                <span>Copy</span>
+                              </>
+                            )}
+                          </button>
+                        )}
                       </div>
                       {prog.share_text && (
                         <div className="bg-background border border-border rounded-lg p-3 text-sm whitespace-pre-wrap font-mono text-muted-foreground">
@@ -735,6 +891,179 @@ return (
                       )}
                     </div>
                   ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Compare Modal (Side-by-Side) */}
+      {comparingGame && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm" onClick={() => setComparingGame(null)}>
+          <div className="bg-card w-full max-w-2xl max-h-[85vh] rounded-3xl shadow-2xl border border-border flex flex-col animate-in fade-in zoom-in-95 duration-200" onClick={e => e.stopPropagation()}>
+            {/* Header */}
+            <div className="flex justify-between items-center p-5 sm:p-6 border-b border-border bg-muted/30">
+              <div className="flex items-center space-x-3 min-w-0">
+                {getGameLogo(comparingGame) ? (
+                  <img src={getGameLogo(comparingGame)} alt="" className="w-10 h-10 rounded-xl object-cover shadow-sm border border-border flex-shrink-0" />
+                ) : (
+                  <Gamepad2 className="w-8 h-8 text-muted-foreground flex-shrink-0" />
+                )}
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-lg sm:text-xl font-extrabold text-foreground leading-tight truncate">
+                      {comparingGame.custom_name || comparingGame.global_games?.name || "Game"}
+                    </h3>
+                    <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20 shrink-0">
+                      Compare
+                    </span>
+                  </div>
+                  <p className="text-xs sm:text-sm text-muted-foreground font-medium truncate">
+                    Side-by-side: You vs. <span className="font-bold text-foreground">{selectedUser?.username}</span>
+                  </p>
+                </div>
+              </div>
+              <button 
+                onClick={() => setComparingGame(null)}
+                className="text-muted-foreground hover:text-foreground transition-colors bg-background p-1.5 rounded-full border border-border shadow-sm flex-shrink-0"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Content */}
+            <div className="p-5 sm:p-6 overflow-y-auto flex-1 space-y-4">
+              {isLoadingComparison ? (
+                <div className="flex justify-center py-12"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>
+              ) : comparisonDays.length === 0 ? (
+                <div className="text-center py-12">
+                  <ArrowLeftRight className="w-12 h-12 text-muted-foreground mx-auto mb-3 opacity-30" />
+                  <p className="text-foreground font-bold text-base mb-1">No shared results to compare</p>
+                  <p className="text-xs sm:text-sm text-muted-foreground max-w-sm mx-auto">
+                    Neither you nor {selectedUser?.username} have pasted results for this game yet.
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {comparisonDays.map((item) => {
+                    const bothPlayed = !!(item.myText && item.friendText);
+                    const formattedDate = new Date(item.date + 'T00:00:00').toLocaleDateString(undefined, {
+                      weekday: 'short',
+                      month: 'short',
+                      day: 'numeric',
+                      year: 'numeric'
+                    });
+
+                    return (
+                      <div key={item.date} className="p-4 rounded-2xl border border-border bg-muted/20 space-y-3">
+                        {/* Day Header */}
+                        <div className="flex items-center justify-between flex-wrap gap-2 pb-2 border-b border-border/60">
+                          <span className="text-xs sm:text-sm font-extrabold text-foreground flex items-center gap-1.5">
+                            📅 {formattedDate}
+                          </span>
+                          {bothPlayed ? (
+                            <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-[#709176]/15 text-[#709176] border border-[#709176]/30 flex items-center gap-1">
+                              <CheckCircle2 className="w-3 h-3" /> Both shared
+                            </span>
+                          ) : (
+                            <span className="text-[11px] font-medium text-muted-foreground">
+                              {item.myText ? 'You only' : `${selectedUser?.username} only`}
+                            </span>
+                          )}
+                        </div>
+
+                        {/* Side by side columns */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                          {/* You */}
+                          <div className="bg-background border border-border rounded-xl p-3 flex flex-col justify-between space-y-2">
+                            <div className="flex items-center justify-between text-xs font-bold text-foreground">
+                              <span className="flex items-center gap-1.5 text-primary">
+                                <span className="w-2 h-2 rounded-full bg-primary"></span>
+                                You
+                              </span>
+                              {item.myText && (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    navigator.clipboard.writeText(item.myText!);
+                                    setCopiedCompareSide(`${item.date}-my`);
+                                    setTimeout(() => setCopiedCompareSide(null), 2000);
+                                  }}
+                                  className="flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-lg border border-border bg-muted/50 hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+                                  title="Copy your result"
+                                >
+                                  {copiedCompareSide === `${item.date}-my` ? (
+                                    <>
+                                      <Check className="w-3 h-3 text-[#709176]" />
+                                      <span className="text-[#709176]">Copied</span>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <Copy className="w-3 h-3" />
+                                      <span>Copy</span>
+                                    </>
+                                  )}
+                                </button>
+                              )}
+                            </div>
+                            {item.myText ? (
+                              <div className="text-xs sm:text-sm font-mono whitespace-pre-wrap text-foreground bg-muted/30 p-2.5 rounded-lg border border-border/50 max-h-48 overflow-y-auto">
+                                {item.myText}
+                              </div>
+                            ) : (
+                              <div className="text-xs text-muted-foreground/70 italic text-center py-4 bg-muted/10 rounded-lg border border-dashed border-border/50">
+                                {myMatchingGameId ? 'No result shared this day' : 'Game not in your catalog'}
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Friend */}
+                          <div className="bg-background border border-border rounded-xl p-3 flex flex-col justify-between space-y-2">
+                            <div className="flex items-center justify-between text-xs font-bold text-foreground">
+                              <span className="flex items-center gap-1.5 text-foreground truncate">
+                                <span className="w-2 h-2 rounded-full bg-amber-500"></span>
+                                <span className="truncate">{selectedUser?.username}</span>
+                              </span>
+                              {item.friendText && (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    navigator.clipboard.writeText(item.friendText!);
+                                    setCopiedCompareSide(`${item.date}-friend`);
+                                    setTimeout(() => setCopiedCompareSide(null), 2000);
+                                  }}
+                                  className="flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-lg border border-border bg-muted/50 hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+                                  title={`Copy ${selectedUser?.username}'s result`}
+                                >
+                                  {copiedCompareSide === `${item.date}-friend` ? (
+                                    <>
+                                      <Check className="w-3 h-3 text-[#709176]" />
+                                      <span className="text-[#709176]">Copied</span>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <Copy className="w-3 h-3" />
+                                      <span>Copy</span>
+                                    </>
+                                  )}
+                                </button>
+                              )}
+                            </div>
+                            {item.friendText ? (
+                              <div className="text-xs sm:text-sm font-mono whitespace-pre-wrap text-foreground bg-muted/30 p-2.5 rounded-lg border border-border/50 max-h-48 overflow-y-auto">
+                                {item.friendText}
+                              </div>
+                            ) : (
+                              <div className="text-xs text-muted-foreground/70 italic text-center py-4 bg-muted/10 rounded-lg border border-dashed border-border/50">
+                                No result shared this day
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               )}
             </div>

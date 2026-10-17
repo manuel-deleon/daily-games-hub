@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
-import { Loader2, Save, CheckCircle2, Flame, LogOut, Upload, KeyRound, Sun, Moon, Eye, EyeOff } from 'lucide-react';
+import { Loader2, Save, CheckCircle2, Flame, LogOut, Upload, KeyRound, Sun, Moon, Eye, EyeOff, Shield, Lock, Unlock } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import type { Profile } from '../types';
+import type { Profile, Game } from '../types';
 import { useTheme } from '../hooks/useTheme';
 
 export function Profile() {
@@ -25,6 +25,10 @@ export function Profile() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
 
+  // Privacy state for games
+  const [userGames, setUserGames] = useState<Game[]>([]);
+  const [updatingGameId, setUpdatingGameId] = useState<string | null>(null);
+
   useEffect(() => {
     async function loadProfile() {
       const { data: { session } } = await supabase.auth.getSession();
@@ -44,11 +48,53 @@ export function Profile() {
         setUsername(data.username || '');
         setFullName(data.full_name || '');
       }
+
+      // Load user games for privacy management
+      const { data: gData } = await supabase
+        .from('user_games')
+        .select('*, global_games(*)')
+        .eq('user_id', session.user.id)
+        .order('created_at', { ascending: false });
+      if (gData) setUserGames(gData);
+
       setIsLoading(false);
     }
 
     loadProfile();
   }, [navigate]);
+
+  const getGameLogo = (game: any) => {
+    const url = game.custom_logo_url || game.global_games?.logo_url;
+    if (url) return url;
+    const gameUrl = game.global_games?.url;
+    if (gameUrl) {
+      try {
+        const domain = new URL(gameUrl).hostname;
+        return `https://www.google.com/s2/favicons?domain=${domain}&sz=128`;
+      } catch {
+        return undefined;
+      }
+    }
+    return undefined;
+  };
+
+  const handleTogglePrivacy = async (game: Game) => {
+    setUpdatingGameId(game.id);
+    const newStatus = !game.is_private;
+    // Optimistic UI update
+    setUserGames(prev => prev.map(g => g.id === game.id ? { ...g, is_private: newStatus } : g));
+
+    const { error } = await supabase
+      .from('user_games')
+      .update({ is_private: newStatus })
+      .eq('id', game.id);
+
+    if (error) {
+      console.error('Error updating privacy:', error);
+      setUserGames(prev => prev.map(g => g.id === game.id ? { ...g, is_private: !newStatus } : g));
+    }
+    setUpdatingGameId(null);
+  };
 
   const extractStoragePath = (publicUrl: string, bucket: string): string | null => {
     const marker = `/${bucket}/`;
@@ -341,6 +387,63 @@ export function Profile() {
         </form>
       </div>
 
+      {/* Privacy Section */}
+      <div className="bg-card border border-border rounded-3xl shadow-sm p-6 sm:p-8">
+        <div className="flex items-center space-x-3 mb-1">
+          <Shield className="w-5 h-5 text-primary" />
+          <h3 className="text-lg font-extrabold text-foreground">Privacy</h3>
+        </div>
+        <p className="text-sm text-muted-foreground font-medium mb-6">
+          Control which games show their play history to other users. When enabled, your history for that game is hidden from others.
+        </p>
+
+        {userGames.length === 0 ? (
+          <p className="text-sm text-muted-foreground italic">You haven't added any games to your catalog yet.</p>
+        ) : (
+          <div className="space-y-3">
+            {userGames.map(game => {
+              const name = game.custom_name || game.global_games?.name || 'Game';
+              const logo = getGameLogo(game);
+              const isPrivate = !!game.is_private;
+              return (
+                <div key={game.id} className="flex items-center justify-between p-3.5 rounded-2xl border border-border bg-background/50 hover:bg-background transition-colors gap-3">
+                  <div className="flex items-center space-x-3 min-w-0 flex-1">
+                    {logo ? (
+                      <img src={logo} alt="" className="w-9 h-9 rounded-xl object-cover border border-border flex-shrink-0" />
+                    ) : (
+                      <div className="w-9 h-9 rounded-xl flex items-center justify-center font-bold text-white flex-shrink-0" style={{ backgroundColor: game.custom_color || game.global_games?.color || '#333' }}>
+                        {name.charAt(0).toUpperCase()}
+                      </div>
+                    )}
+                    <div className="min-w-0">
+                      <h4 className="font-bold text-foreground text-sm truncate">{name}</h4>
+                      <span className="text-xs text-muted-foreground flex items-center gap-1">
+                        {isPrivate ? (
+                          <span className="text-amber-500 font-semibold flex items-center gap-1"><Lock className="w-3 h-3" /> Hidden from others</span>
+                        ) : (
+                          <span className="text-muted-foreground flex items-center gap-1"><Unlock className="w-3 h-3" /> Visible to friends</span>
+                        )}
+                      </span>
+                    </div>
+                  </div>
+
+                  <button
+                    onClick={() => handleTogglePrivacy(game)}
+                    disabled={updatingGameId === game.id}
+                    className={`relative inline-flex h-7 w-12 items-center rounded-full transition-colors focus:outline-none flex-shrink-0 ${isPrivate ? 'bg-primary' : 'bg-muted border border-border'}`}
+                    title={isPrivate ? 'Make public' : 'Make private'}
+                  >
+                    <span
+                      className={`inline-block h-5 w-5 transform rounded-full bg-white transition-transform ${isPrivate ? 'translate-x-6' : 'translate-x-1'}`}
+                    />
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
       {/* Appearance Section */}
       <div className="bg-card border border-border rounded-3xl shadow-sm p-6 sm:p-8">
         <div>
@@ -377,7 +480,7 @@ export function Profile() {
 
         {/* Version Info */}
         <div className="text-center pt-8 pb-4">
-          <p className="text-xs font-bold text-muted-foreground/40">DailyHub v1.2.1</p>
+          <p className="text-xs font-bold text-muted-foreground/40">DailyHub v1.3.1</p>
         </div>
       </div>
   );

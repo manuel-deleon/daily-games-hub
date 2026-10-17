@@ -2,14 +2,14 @@ import { useEffect, useState, useRef } from 'react';
 import { supabase } from '../lib/supabase';
 import {
   Lightbulb, ThumbsUp, ThumbsDown, MessageSquare, Plus, Loader2,
-  Trash2, Bug, HelpCircle, Megaphone, SlidersHorizontal, X, Send, ChevronDown, Clock, CalendarDays
+  Trash2, Bug, HelpCircle, Megaphone, SlidersHorizontal, X, Send, ChevronDown, Clock, CalendarDays, User
 } from 'lucide-react';
 import type { Profile } from '../types';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type FeedbackType = 'idea' | 'bug' | 'question' | 'other';
 type SortMode = 'score' | 'newest' | 'oldest';
-type StatusFilter = 'all' | 'pending' | 'working' | 'implemented';
+type StatusFilter = 'pending' | 'working' | 'implemented' | 'rejected';
 
 const FEEDBACK_TYPES: { value: FeedbackType; label: string; icon: React.ReactNode; color: string }[] = [
   { value: 'idea',     label: 'Idea',     icon: <Lightbulb className="w-4 h-4" />, color: 'text-yellow-500 bg-yellow-500/10 border-yellow-500/30' },
@@ -35,11 +35,24 @@ export function Suggestions() {
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [isAnonymous, setIsAnonymous] = useState(false);
 
-  // Filters
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
-  const [typeFilter, setTypeFilter] = useState<FeedbackType | 'all'>('all');
+  // Filters (Multi-select)
+  const [selectedStatuses, setSelectedStatuses] = useState<StatusFilter[]>([]);
+  const [selectedTypes, setSelectedTypes] = useState<FeedbackType[]>([]);
+  const [onlyMine, setOnlyMine] = useState(false);
   const [sortMode, setSortMode] = useState<SortMode>('score');
   const [showFilters, setShowFilters] = useState(false);
+
+  const toggleStatus = (status: StatusFilter) => {
+    setSelectedStatuses(prev =>
+      prev.includes(status) ? prev.filter(s => s !== status) : [...prev, status]
+    );
+  };
+
+  const toggleType = (type: FeedbackType) => {
+    setSelectedTypes(prev =>
+      prev.includes(type) ? prev.filter(t => t !== type) : [...prev, type]
+    );
+  };
 
   const [myVotes, setMyVotes] = useState<Record<string, number>>({});
 
@@ -49,6 +62,7 @@ export function Suggestions() {
   const [isLoadingComments, setIsLoadingComments] = useState(false);
   const [newComment, setNewComment] = useState('');
   const [isPostingComment, setIsPostingComment] = useState(false);
+  const [commentError, setCommentError] = useState<string | null>(null);
   const commentEndRef = useRef<HTMLDivElement>(null);
 
   const loadData = async () => {
@@ -153,22 +167,70 @@ export function Suggestions() {
   };
 
   // ── Thread / Comments ─────────────────────────────────────────────────
+  const fetchThreadComments = async (suggestionId: string) => {
+    setCommentError(null);
+    try {
+      // 1. Fetch comments directly (not dependent on PostgREST foreign key cache)
+      const { data: comments, error: commentsError } = await supabase
+        .from('suggestion_comments')
+        .select('*')
+        .eq('suggestion_id', suggestionId)
+        .order('created_at', { ascending: true });
+
+      if (commentsError) {
+        console.error('Error fetching comments:', commentsError);
+        setCommentError(`Error cargando comentarios: ${commentsError.message}`);
+        return [];
+      }
+
+      if (!comments || comments.length === 0) {
+        return [];
+      }
+
+      // 2. Fetch associated profiles for usernames/avatars
+      const userIds = Array.from(new Set(comments.map((c: any) => c.user_id).filter(Boolean)));
+      if (userIds.length > 0) {
+        const { data: profiles, error: profError } = await supabase
+          .from('profiles')
+          .select('id, username, avatar_url, is_admin')
+          .in('id', userIds);
+
+        if (profError) {
+          console.warn('Error fetching comment profiles:', profError);
+        }
+
+        const profileMap = new Map((profiles || []).map((p: any) => [p.id, p]));
+        return comments.map((c: any) => ({
+          ...c,
+          profiles: profileMap.get(c.user_id) || null,
+        }));
+      }
+
+      return comments;
+    } catch (err: any) {
+      console.error('Exception fetching comments:', err);
+      setCommentError(err.message || 'Error inesperado al cargar comentarios');
+      return [];
+    }
+  };
+
   const openThread = async (s: any) => {
     setThreadSuggestion(s);
+    setCommentError(null);
     setIsLoadingComments(true);
-    const { data } = await supabase
-      .from('suggestion_comments')
-      .select('*, profiles(username, avatar_url, is_admin)')
-      .eq('suggestion_id', s.id)
-      .order('created_at', { ascending: true });
-    setThreadComments(data || []);
+    const comments = await fetchThreadComments(s.id);
+    setThreadComments(comments);
     setIsLoadingComments(false);
   };
 
   const postComment = async () => {
     if (!newComment.trim() || !threadSuggestion) return;
+    setCommentError(null);
     const { data: { session } } = await supabase.auth.getSession();
-    if (!session) return;
+    if (!session) {
+      setCommentError('Debes iniciar sesión para comentar.');
+      return;
+    }
     setIsPostingComment(true);
 
     const { error } = await supabase.from('suggestion_comments').insert({
@@ -177,18 +239,28 @@ export function Suggestions() {
       content: newComment.trim(),
     });
 
-    if (!error) {
+    if (error) {
+      console.error('Error posting comment:', error);
+      setCommentError(`Error al publicar comentario: ${error.message}`);
+    } else {
       setNewComment('');
-      // Reload comments
-      const { data } = await supabase
-        .from('suggestion_comments')
-        .select('*, profiles(username, avatar_url, is_admin)')
-        .eq('suggestion_id', threadSuggestion.id)
-        .order('created_at', { ascending: true });
-      setThreadComments(data || []);
+      const updated = await fetchThreadComments(threadSuggestion.id);
+      setThreadComments(updated);
       setTimeout(() => commentEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
     }
     setIsPostingComment(false);
+  };
+
+  const handleDeleteComment = async (commentId: string) => {
+    if (!confirm('¿Seguro que deseas eliminar este comentario?')) return;
+    const { error } = await supabase.from('suggestion_comments').delete().eq('id', commentId);
+    if (error) {
+      console.error('Error deleting comment:', error);
+      setCommentError(error.message);
+    } else if (threadSuggestion) {
+      const updated = await fetchThreadComments(threadSuggestion.id);
+      setThreadComments(updated);
+    }
   };
 
   // ── Helpers ──────────────────────────────────────────────────────────────
@@ -203,8 +275,9 @@ export function Suggestions() {
 
   // ── Filtering + Sorting ──────────────────────────────────────────────────
   let filtered = suggestions.filter(s => {
-    if (statusFilter !== 'all' && s.status !== statusFilter) return false;
-    if (typeFilter !== 'all' && s.feedback_type !== typeFilter) return false;
+    if (selectedStatuses.length > 0 && !selectedStatuses.includes(s.status)) return false;
+    if (selectedTypes.length > 0 && !selectedTypes.includes(s.feedback_type)) return false;
+    if (onlyMine && s.user_id !== profile?.id) return false;
     return true;
   });
 
@@ -215,7 +288,7 @@ export function Suggestions() {
     return 0;
   });
 
-  const activeFiltersCount = (statusFilter !== 'all' ? 1 : 0) + (typeFilter !== 'all' ? 1 : 0) + (sortMode !== 'score' ? 1 : 0);
+  const activeFiltersCount = selectedStatuses.length + selectedTypes.length + (onlyMine ? 1 : 0) + (sortMode !== 'score' ? 1 : 0);
 
   if (isLoading) {
     return <div className="flex justify-center py-12"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>;
@@ -313,23 +386,56 @@ export function Suggestions() {
 
       {/* ── Filter Bar ── */}
       <div className="bg-card border border-border rounded-2xl overflow-hidden shadow-sm">
-        {/* Top row: status pills + filter toggle */}
+        {/* Top row: status pills + onlyMine + filter toggle */}
         <div className="flex items-center gap-2 p-3 border-b border-border flex-wrap">
-          <div className="flex flex-wrap gap-1.5 flex-1 min-w-0">
-            {(['all', 'pending', 'working', 'implemented'] as const).map(f => (
-              <button
-                key={f}
-                onClick={() => setStatusFilter(f)}
-                className={`px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap transition-colors border ${
-                  statusFilter === f
-                    ? 'bg-primary text-primary-foreground border-primary'
-                    : 'bg-background border-border text-muted-foreground hover:bg-muted'
-                }`}
-              >
-                {f.charAt(0).toUpperCase() + f.slice(1)}
-              </button>
-            ))}
+          <div className="flex flex-wrap items-center gap-1.5 flex-1 min-w-0">
+            <button
+              onClick={() => setSelectedStatuses([])}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap transition-colors border ${
+                selectedStatuses.length === 0
+                  ? 'bg-primary text-primary-foreground border-primary'
+                  : 'bg-background border-border text-muted-foreground hover:bg-muted'
+              }`}
+            >
+              All
+            </button>
+            {([
+              { key: 'pending', label: 'Pending', activeClass: 'bg-primary text-primary-foreground border-primary' },
+              { key: 'working', label: 'Working on it', activeClass: 'bg-amber-500 text-white border-amber-500' },
+              { key: 'implemented', label: 'Implemented', activeClass: 'bg-[#709176] text-white border-[#709176]' },
+              { key: 'rejected', label: 'Rejected', activeClass: 'bg-red-500 text-white border-red-500' }
+            ] as const).map(f => {
+              const isSelected = selectedStatuses.includes(f.key);
+              return (
+                <button
+                  key={f.key}
+                  onClick={() => toggleStatus(f.key)}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap transition-colors border ${
+                    isSelected
+                      ? f.activeClass
+                      : 'bg-background border-border text-muted-foreground hover:bg-muted'
+                  }`}
+                >
+                  {f.label}
+                </button>
+              );
+            })}
+
+            <div className="h-4 w-px bg-border mx-1 hidden sm:block" />
+
+            <button
+              onClick={() => setOnlyMine(!onlyMine)}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap transition-colors border ${
+                onlyMine
+                  ? 'bg-primary text-primary-foreground border-primary'
+                  : 'bg-background border-border text-muted-foreground hover:bg-muted'
+              }`}
+            >
+              <User className="w-3.5 h-3.5" />
+              My posts
+            </button>
           </div>
+
           <button
             onClick={() => setShowFilters(!showFilters)}
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold border transition-colors flex-shrink-0 ${
@@ -352,31 +458,34 @@ export function Suggestions() {
         {/* Expandable filter panel */}
         {showFilters && (
           <div className="p-4 space-y-4 animate-in slide-in-from-top-2 fade-in duration-200">
-            {/* Type filter */}
+            {/* Type filter (Multi-select) */}
             <div>
-              <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">Feedback Type</p>
+              <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">Feedback Type (Multi-select)</p>
               <div className="flex flex-wrap gap-1.5">
                 <button
-                  onClick={() => setTypeFilter('all')}
+                  onClick={() => setSelectedTypes([])}
                   className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition-colors ${
-                    typeFilter === 'all'
+                    selectedTypes.length === 0
                       ? 'bg-foreground text-background border-foreground'
                       : 'bg-background border-border text-muted-foreground hover:bg-muted'
                   }`}
                 >
                   All types
                 </button>
-                {FEEDBACK_TYPES.map(t => (
-                  <button
-                    key={t.value}
-                    onClick={() => setTypeFilter(t.value)}
-                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold border transition-colors ${
-                      typeFilter === t.value ? t.color : 'bg-background border-border text-muted-foreground hover:bg-muted'
-                    }`}
-                  >
-                    {t.icon} {t.label}
-                  </button>
-                ))}
+                {FEEDBACK_TYPES.map(t => {
+                  const isSelected = selectedTypes.includes(t.value);
+                  return (
+                    <button
+                      key={t.value}
+                      onClick={() => toggleType(t.value)}
+                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold border transition-colors ${
+                        isSelected ? t.color : 'bg-background border-border text-muted-foreground hover:bg-muted'
+                      }`}
+                    >
+                      {t.icon} {t.label}
+                    </button>
+                  );
+                })}
               </div>
             </div>
 
@@ -407,7 +516,7 @@ export function Suggestions() {
             {/* Reset */}
             {activeFiltersCount > 0 && (
               <button
-                onClick={() => { setStatusFilter('all'); setTypeFilter('all'); setSortMode('score'); }}
+                onClick={() => { setSelectedStatuses([]); setSelectedTypes([]); setOnlyMine(false); setSortMode('score'); }}
                 className="text-xs font-bold text-muted-foreground hover:text-destructive transition-colors flex items-center gap-1"
               >
                 <X className="w-3 h-3" /> Clear all filters
@@ -569,8 +678,9 @@ export function Suggestions() {
                 threadComments.map((c, i) => {
                   const isAdmin = c.profiles?.is_admin;
                   const isMe = c.user_id === profile?.id;
+                  const canDelete = isMe || profile?.is_admin;
                   return (
-                    <div key={i} className={`flex gap-3 ${isMe ? 'flex-row-reverse' : ''}`}>
+                    <div key={c.id || i} className={`flex gap-3 ${isMe ? 'flex-row-reverse' : ''} group`}>
                       {/* Avatar */}
                       <div className={`w-8 h-8 rounded-full flex-shrink-0 flex items-center justify-center text-xs font-bold border ${
                         isAdmin ? 'bg-primary/10 border-primary text-primary' : 'bg-muted border-border text-foreground'
@@ -583,7 +693,7 @@ export function Suggestions() {
                       <div className={`flex flex-col max-w-[75%] ${isMe ? 'items-end' : ''}`}>
                         <div className="flex items-center gap-1.5 mb-1">
                           <span className="text-xs font-bold text-foreground">
-                            {c.profiles?.username ?? 'Unknown'}
+                            {c.profiles?.username ?? 'User'}
                           </span>
                           {isAdmin && (
                             <span className="text-[10px] font-bold bg-primary/10 text-primary px-1.5 py-0.5 rounded-full border border-primary/20">Admin</span>
@@ -591,13 +701,22 @@ export function Suggestions() {
                           <span className="text-[10px] text-muted-foreground/60">
                             {new Date(c.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
                           </span>
+                          {canDelete && c.id && (
+                            <button
+                              onClick={() => handleDeleteComment(c.id)}
+                              className="opacity-0 group-hover:opacity-100 p-0.5 text-muted-foreground hover:text-destructive transition-all"
+                              title="Delete comment"
+                            >
+                              <Trash2 className="w-3 h-3" />
+                            </button>
+                          )}
                         </div>
-                        <div className={`px-3 py-2 rounded-2xl text-sm text-foreground whitespace-pre-wrap break-words ${
+                        <div className={`px-3 py-2 rounded-2xl text-sm whitespace-pre-wrap break-words ${
                           isMe
                             ? 'bg-primary text-primary-foreground rounded-tr-sm'
                             : isAdmin
-                              ? 'bg-primary/5 border border-primary/20 rounded-tl-sm'
-                              : 'bg-muted border border-border rounded-tl-sm'
+                              ? 'bg-primary/5 border border-primary/20 text-foreground rounded-tl-sm'
+                              : 'bg-muted border border-border text-foreground rounded-tl-sm'
                         }`}>
                           {c.content}
                         </div>
@@ -611,6 +730,14 @@ export function Suggestions() {
 
             {/* Comment input */}
             <div className="p-4 border-t border-border bg-muted/20 flex-shrink-0">
+              {commentError && (
+                <div className="bg-destructive/10 border border-destructive/20 text-destructive text-xs font-bold p-3 rounded-xl mb-3 flex items-start gap-2">
+                  <span className="flex-1">{commentError}</span>
+                  <button onClick={() => setCommentError(null)} className="text-destructive/80 hover:text-destructive">
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              )}
               <div className="flex gap-2 items-end">
                 <textarea
                   value={newComment}
