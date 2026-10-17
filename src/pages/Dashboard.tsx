@@ -974,7 +974,7 @@ try {
                       }`}
                     >
                       <Trophy className="w-4 h-4 text-[#709176]" />
-                      <span>Won (+1 Streak)</span>
+                      <span>Won</span>
                     </button>
 
                     <button
@@ -987,14 +987,9 @@ try {
                       }`}
                     >
                       <XCircle className="w-4 h-4 text-destructive" />
-                      <span>Lost (Streak 0)</span>
+                      <span>Lost</span>
                     </button>
                   </div>
-                  {!isWon && (
-                    <p className="text-xs text-destructive font-medium">
-                      Marking as lost will reset your current streak for this game to 0.
-                    </p>
-                  )}
                 </div>
 
                 {/* Paste results */}
