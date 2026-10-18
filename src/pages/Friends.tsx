@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { Search, UserPlus, Users, Flame, Copy, Loader2, CheckCircle2, X, Trophy, Hash, Gamepad2 , Circle, Lock, ArrowLeftRight, Check } from 'lucide-react';
 import type { Profile, Game } from '../types';
@@ -31,6 +32,7 @@ export function Friends() {
     return name.length > max ? `${name.slice(0, max)}…` : name;
   };
 
+  const [searchParams, setSearchParams] = useSearchParams();
   const [activeTab, setActiveTab] = useState<'ranking' | 'following' | 'followers' | 'search'>('ranking');
   const [currentUser, setCurrentUser] = useState<string | null>(null);
   
@@ -263,6 +265,23 @@ export function Friends() {
     }
   }, [rankingScope, rankingMode, followingIdsList, currentUser]);
 
+  // Auto-open user catalog if ?userId= parameter is present (e.g. from follow alerts)
+  useEffect(() => {
+    const targetUserId = searchParams.get('userId');
+    if (targetUserId && currentUser) {
+      supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', targetUserId)
+        .single()
+        .then(({ data, error }) => {
+          if (data && !error) {
+            openCatalog(data);
+          }
+        });
+    }
+  }, [searchParams, currentUser]);
+
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!searchQuery.trim() || !currentUser) return;
@@ -309,6 +328,30 @@ export function Friends() {
     
     if (!error) {
       await loadRelationships();
+    }
+  };
+
+  const handleUnfollowUser = async (targetUserId: string) => {
+    if (!currentUser) return;
+    const rel = following.find(f => f.id === targetUserId);
+    if (rel?.relationship_id) {
+      await handleUnfollow(rel.relationship_id);
+    } else {
+      const { error } = await supabase
+        .from('friendships')
+        .delete()
+        .eq('user_id', currentUser)
+        .eq('friend_id', targetUserId);
+      if (!error) {
+        await loadRelationships();
+      }
+    }
+  };
+
+  const closeCatalog = () => {
+    setSelectedUser(null);
+    if (searchParams.get('userId')) {
+      setSearchParams({});
     }
   };
 
@@ -593,7 +636,14 @@ return (
                           Follow back
                         </button>
                       ) : (
-                        <span className="ml-auto flex-shrink-0 text-sm font-bold text-muted-foreground px-5 py-2.5 bg-muted rounded-xl">Friends</span>
+                        <button 
+                          onClick={() => handleUnfollowUser(user.id)}
+                          className="ml-auto flex-shrink-0 text-sm font-bold text-muted-foreground hover:text-destructive hover:bg-destructive/10 hover:border-destructive/30 px-5 py-2.5 bg-muted rounded-xl border border-border transition-all group cursor-pointer"
+                          title="Click to unfollow"
+                        >
+                          <span className="group-hover:hidden">Following</span>
+                          <span className="hidden group-hover:inline">Unfollow</span>
+                        </button>
                       )}
                     </div>
                   );
@@ -647,7 +697,14 @@ return (
                         </div>
                       </div>
                       {alreadyFollowing ? (
-                        <span className="ml-auto flex-shrink-0 text-sm font-bold text-muted-foreground px-5 py-2.5 bg-muted rounded-xl border border-border">Following</span>
+                        <button 
+                          onClick={() => handleUnfollowUser(user.id)}
+                          className="ml-auto flex-shrink-0 text-sm font-bold text-muted-foreground hover:text-destructive hover:bg-destructive/10 hover:border-destructive/30 px-5 py-2.5 bg-muted rounded-xl border border-border transition-all group cursor-pointer"
+                          title="Click to unfollow"
+                        >
+                          <span className="group-hover:hidden">Following</span>
+                          <span className="hidden group-hover:inline">Unfollow</span>
+                        </button>
                       ) : (
                         <button 
                           onClick={() => handleFollow(user.id)}
@@ -668,8 +725,8 @@ return (
 
       {/* Catálogo Modal */}
       {selectedUser && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm">
-          <div className="bg-card w-full max-w-2xl rounded-3xl shadow-2xl border border-border overflow-hidden flex flex-col max-h-[85vh] animate-in fade-in zoom-in-95 duration-200">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm" onClick={closeCatalog}>
+          <div className="bg-card w-full max-w-2xl rounded-3xl shadow-2xl border border-border overflow-hidden flex flex-col max-h-[85vh] animate-in fade-in zoom-in-95 duration-200" onClick={e => e.stopPropagation()}>
             <div className="flex justify-between items-start p-5 sm:p-6 border-b border-border bg-muted/30 gap-3">
               <div className="flex items-center space-x-3 sm:space-x-4 min-w-0 flex-1">
                 <div className="h-12 w-12 rounded-full bg-background overflow-hidden border border-border shadow-sm flex-shrink-0">
@@ -701,8 +758,8 @@ return (
               {/* Actions column anchored to the far right */}
               <div className="flex flex-col items-end gap-2 flex-shrink-0 ml-auto">
                 <button 
-                  onClick={() => setSelectedUser(null)} 
-                  className="text-muted-foreground hover:text-foreground bg-background p-1.5 rounded-full border border-border shadow-sm transition-colors"
+                  onClick={closeCatalog} 
+                  className="text-muted-foreground hover:text-foreground bg-background p-1.5 rounded-full border border-border shadow-sm transition-colors cursor-pointer"
                   title="Close"
                 >
                   <X className="w-5 h-5" />
@@ -710,15 +767,21 @@ return (
                 {selectedUser.id !== currentUser && !isFollowing(selectedUser.id) && (
                   <button
                     onClick={() => handleFollow(selectedUser.id)}
-                    className="px-4 py-2 bg-primary text-primary-foreground text-sm font-bold rounded-xl hover:opacity-90 transition-opacity shadow-sm flex items-center whitespace-nowrap"
+                    className="px-4 py-2 bg-primary text-primary-foreground text-sm font-bold rounded-xl hover:opacity-90 transition-opacity shadow-sm flex items-center whitespace-nowrap cursor-pointer"
                   >
-                    <UserPlus className="w-4 h-4 mr-1.5" /> Follow
+                    <UserPlus className="w-4 h-4 mr-1.5" />
+                    {followers.some(f => f.id === selectedUser.id) ? 'Follow back' : 'Follow'}
                   </button>
                 )}
                 {selectedUser.id !== currentUser && isFollowing(selectedUser.id) && (
-                  <span className="px-4 py-2 bg-muted text-muted-foreground border border-border text-sm font-bold rounded-xl shadow-sm whitespace-nowrap">
-                    Following
-                  </span>
+                  <button
+                    onClick={() => handleUnfollowUser(selectedUser.id)}
+                    className="px-4 py-2 bg-muted text-muted-foreground hover:bg-destructive/10 hover:text-destructive hover:border-destructive/30 border border-border text-sm font-bold rounded-xl shadow-sm transition-all whitespace-nowrap group cursor-pointer"
+                    title="Click to unfollow"
+                  >
+                    <span className="group-hover:hidden">Following</span>
+                    <span className="hidden group-hover:inline">Unfollow</span>
+                  </button>
                 )}
               </div>
             </div>

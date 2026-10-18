@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { 
   Bell, 
@@ -8,38 +8,20 @@ import {
   MessageSquare, 
   CheckCheck, 
   Trash2, 
-  Loader2, 
-  User as UserIcon,
-  ChevronRight
+  Loader2
 } from 'lucide-react';
-import { supabase } from '../lib/supabase';
 import { 
   fetchNotifications, 
   markNotificationAsRead, 
   markAllNotificationsAsRead, 
   deleteNotification 
 } from '../lib/notifications';
-import type { AppNotification, Profile } from '../types';
+import type { AppNotification } from '../types';
 
 export function Notifications() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [filter, setFilter] = useState<'all' | 'unread'>('all');
-
-  // Fetch current user profile for quick profile banner
-  const { data: profile } = useQuery<Profile | null>({
-    queryKey: ['profile'],
-    queryFn: async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) return null;
-      const { data } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', session.user.id)
-        .single();
-      return data;
-    },
-  });
 
   // Fetch notifications
   const { data: notifications = [], isLoading } = useQuery<AppNotification[]>({
@@ -63,7 +45,7 @@ export function Notifications() {
     }
 
     if (notif.type === 'follow') {
-      navigate('/friends');
+      navigate(`/friends?userId=${notif.actor_id}`);
     } else if (notif.type === 'suggestion_like' || notif.type === 'suggestion_comment') {
       navigate('/suggestions');
     }
@@ -99,9 +81,9 @@ export function Notifications() {
       case 'follow':
         return <UserPlus className="w-3.5 h-3.5 text-blue-500" />;
       case 'suggestion_like':
-        return <ThumbsUp className="w-3.5 h-3.5 text-amber-500" />;
+        return <ThumbsUp className="w-3.5 h-3.5 text-amber-500 fill-amber-500" />;
       case 'suggestion_comment':
-        return <MessageSquare className="w-3.5 h-3.5 text-emerald-500" />;
+        return <MessageSquare className="w-3.5 h-3.5 text-emerald-500 fill-emerald-500" />;
       default:
         return <Bell className="w-3.5 h-3.5 text-primary" />;
     }
@@ -122,39 +104,6 @@ export function Notifications() {
 
   return (
     <div className="max-w-3xl mx-auto space-y-6">
-      {/* Quick Profile Access Banner */}
-      {profile && (
-        <Link
-          to="/profile"
-          className="flex items-center justify-between p-4 rounded-2xl bg-card border border-border hover:border-primary/40 shadow-sm transition-all group"
-        >
-          <div className="flex items-center gap-3">
-            <div className="w-11 h-11 rounded-full bg-muted border border-border overflow-hidden flex items-center justify-center flex-shrink-0">
-              {profile.avatar_url ? (
-                <img src={profile.avatar_url} alt="" className="w-full h-full object-cover" />
-              ) : (
-                <UserIcon className="w-5 h-5 text-muted-foreground" />
-              )}
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="text-sm font-bold text-foreground">@{profile.username}</span>
-                {profile.is_admin && (
-                  <span className="text-[10px] font-bold bg-primary/10 text-primary px-1.5 py-0.5 rounded-full border border-primary/20">
-                    Admin
-                  </span>
-                )}
-              </div>
-              <p className="text-xs text-muted-foreground">Manage profile, theme & settings</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-1 text-xs font-semibold text-primary group-hover:translate-x-0.5 transition-transform">
-            <span>View Profile</span>
-            <ChevronRight className="w-4 h-4" />
-          </div>
-        </Link>
-      )}
-
       {/* Main Notifications Card */}
       <div className="bg-card rounded-3xl border border-border shadow-sm p-6 space-y-6">
         {/* Header */}
