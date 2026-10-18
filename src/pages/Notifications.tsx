@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { 
@@ -12,7 +12,6 @@ import {
 } from 'lucide-react';
 import { 
   fetchNotifications, 
-  markNotificationAsRead, 
   markAllNotificationsAsRead, 
   deleteNotification 
 } from '../lib/notifications';
@@ -29,21 +28,38 @@ export function Notifications() {
     queryFn: fetchNotifications,
   });
 
-  // Mark all as read
+  // Automatically mark all notifications as read upon entering the Alerts section
+  useEffect(() => {
+    let isMounted = true;
+    const markSeen = async () => {
+      try {
+        await markAllNotificationsAsRead();
+        if (isMounted) {
+          // Immediately clear the unread badge in the layout navbar
+          queryClient.invalidateQueries({ queryKey: ['unread-notifications-count'] });
+        }
+      } catch (err) {
+        console.warn('Could not auto-mark notifications as read:', err);
+      }
+    };
+    markSeen();
+    return () => {
+      isMounted = false;
+      // Invalidate on exit so next visit has fresh read status
+      queryClient.invalidateQueries({ queryKey: ['unread-notifications-count'] });
+      queryClient.invalidateQueries({ queryKey: ['notifications'] });
+    };
+  }, [queryClient]);
+
+  // Mark all as read manually if desired
   const handleMarkAllRead = async () => {
     await markAllNotificationsAsRead();
     queryClient.invalidateQueries({ queryKey: ['notifications'] });
     queryClient.invalidateQueries({ queryKey: ['unread-notifications-count'] });
   };
 
-  // Click on a notification
-  const handleNotificationClick = async (notif: AppNotification) => {
-    if (!notif.is_read) {
-      await markNotificationAsRead(notif.id);
-      queryClient.invalidateQueries({ queryKey: ['notifications'] });
-      queryClient.invalidateQueries({ queryKey: ['unread-notifications-count'] });
-    }
-
+  // Click on a notification: Navigate directly without needing individual mark-as-read
+  const handleNotificationClick = (notif: AppNotification) => {
     if (notif.type === 'follow') {
       navigate(`/friends?userId=${notif.actor_id}`);
     } else if (notif.type === 'suggestion_like' || notif.type === 'suggestion_comment') {
