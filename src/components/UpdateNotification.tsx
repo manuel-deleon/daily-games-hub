@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useRegisterSW } from 'virtual:pwa-register/react';
-import { Sparkles, RefreshCw, X } from 'lucide-react';
+import { ArrowUpCircle, RefreshCw, X } from 'lucide-react';
 
 export function UpdateNotification() {
   const [isUpdating, setIsUpdating] = useState(false);
@@ -63,7 +63,7 @@ export function UpdateNotification() {
     >
       <div className="flex items-start gap-3">
         <div className="p-2.5 rounded-xl bg-primary/10 text-primary flex-shrink-0 mt-0.5">
-          <Sparkles className="w-5 h-5 animate-pulse" />
+          <ArrowUpCircle className="w-5 h-5" />
         </div>
 
         <div className="flex-1 min-w-0 pr-1">

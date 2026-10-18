@@ -32,3 +32,22 @@ export interface Game {
   created_at: string;
   global_games?: GlobalGame;
 }
+
+export type NotificationType = 'follow' | 'suggestion_like' | 'suggestion_comment';
+
+export interface AppNotification {
+  id: string;
+  user_id: string;
+  actor_id: string;
+  type: NotificationType;
+  title: string;
+  message?: string | null;
+  entity_id?: string | null;
+  is_read: boolean;
+  created_at: string;
+  actor?: {
+    id: string;
+    username: string;
+    avatar_url: string | null;
+  };
+}

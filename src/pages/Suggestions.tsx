@@ -5,6 +5,7 @@ import {
   Trash2, Bug, HelpCircle, Megaphone, SlidersHorizontal, X, Send, ChevronDown, Clock, CalendarDays, User
 } from 'lucide-react';
 import type { Profile } from '../types';
+import { createNotification } from '../lib/notifications';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type FeedbackType = 'idea' | 'bug' | 'question' | 'other';
@@ -109,6 +110,21 @@ export function Suggestions() {
         user_id: session.user.id,
         vote_type: voteType,
       }, { onConflict: 'suggestion_id, user_id' });
+
+      // Notify suggestion author on like/upvote
+      if (voteType === 1) {
+        const targetSuggestion = suggestions.find(s => s.id === suggestionId);
+        if (targetSuggestion && targetSuggestion.user_id && targetSuggestion.user_id !== session.user.id) {
+          createNotification({
+            userId: targetSuggestion.user_id,
+            actorId: session.user.id,
+            type: 'suggestion_like',
+            title: `@${profile?.username || 'Someone'} liked your feedback`,
+            message: targetSuggestion.title,
+            entityId: suggestionId,
+          });
+        }
+      }
     }
     await loadData();
   };
@@ -243,10 +259,41 @@ export function Suggestions() {
       console.error('Error posting comment:', error);
       setCommentError(`Error al publicar comentario: ${error.message}`);
     } else {
+      const postedContent = newComment.trim();
       setNewComment('');
       const updated = await fetchThreadComments(threadSuggestion.id);
       setThreadComments(updated);
       setTimeout(() => commentEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
+
+      // 1. Notify suggestion author if someone else commented
+      if (threadSuggestion.user_id && threadSuggestion.user_id !== session.user.id) {
+        createNotification({
+          userId: threadSuggestion.user_id,
+          actorId: session.user.id,
+          type: 'suggestion_comment',
+          title: `@${profile?.username || 'Someone'} commented on your feedback`,
+          message: postedContent.slice(0, 100),
+          entityId: threadSuggestion.id,
+        });
+      }
+
+      // 2. Notify other participants who already commented on this suggestion
+      const otherParticipantIds = Array.from(new Set(
+        threadComments
+          .map((c: any) => c.user_id)
+          .filter((uid: string) => uid && uid !== session.user.id && uid !== threadSuggestion.user_id)
+      ));
+
+      for (const participantId of otherParticipantIds) {
+        createNotification({
+          userId: participantId,
+          actorId: session.user.id,
+          type: 'suggestion_comment',
+          title: `@${profile?.username || 'Someone'} replied in "${threadSuggestion.title.slice(0, 30)}"`,
+          message: postedContent.slice(0, 100),
+          entityId: threadSuggestion.id,
+        });
+      }
     }
     setIsPostingComment(false);
   };
@@ -715,8 +762,8 @@ export function Suggestions() {
                           isMe
                             ? 'bg-primary text-primary-foreground rounded-tr-sm'
                             : isAdmin
-                              ? 'bg-primary/5 border border-primary/20 text-foreground rounded-tl-sm'
-                              : 'bg-muted border border-border text-foreground rounded-tl-sm'
+                              ? 'bg-primary/10 border border-primary/25 text-foreground rounded-tl-sm'
+                              : 'bg-background/80 border border-foreground/15 shadow-xs text-foreground rounded-tl-sm'
                         }`}>
                           {c.content}
                         </div>

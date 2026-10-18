@@ -480,7 +480,7 @@ export function Profile() {
 
         {/* Version Info */}
         <div className="text-center pt-8 pb-4">
-          <p className="text-xs font-bold text-muted-foreground/40">DailyHub v1.3.2</p>
+          <p className="text-xs font-bold text-muted-foreground/40">DailyHub v1.3.3</p>
         </div>
       </div>
   );
