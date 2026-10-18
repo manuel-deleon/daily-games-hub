@@ -9,6 +9,7 @@ import { Friends } from './pages/Friends';
 import { Admin } from './pages/Admin';
 import { Suggestions } from './pages/Suggestions';
 import { Updates } from './pages/Updates';
+import { Notifications } from './pages/Notifications';
 import type { Session } from '@supabase/supabase-js';
 import { useTheme } from './hooks/useTheme';
 import { UpdateNotification } from './components/UpdateNotification';
@@ -68,6 +69,7 @@ function App() {
             <Route path="admin" element={<Admin />} />
             <Route path="suggestions" element={<Suggestions />} />
             <Route path="updates" element={<Updates />} />
+            <Route path="notifications" element={<Notifications />} />
           </Route>
 
           {/* Catch all para URLs inexistentes */}

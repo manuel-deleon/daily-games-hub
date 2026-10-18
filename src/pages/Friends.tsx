@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabase';
 import { Search, UserPlus, Users, Flame, Copy, Loader2, CheckCircle2, X, Trophy, Hash, Gamepad2 , Circle, Lock, ArrowLeftRight, Check } from 'lucide-react';
 import type { Profile, Game } from '../types';
 import { useTheme } from '../hooks/useTheme';
+import { createNotification } from '../lib/notifications';
 
 interface FollowProfile extends Profile {
   relationship_id: string;
@@ -289,6 +290,14 @@ export function Friends() {
     
     if (!error) {
       await loadRelationships();
+      // Send notification to followed user
+      const { data: myProf } = await supabase.from('profiles').select('username').eq('id', currentUser).single();
+      createNotification({
+        userId: targetId,
+        actorId: currentUser,
+        type: 'follow',
+        title: `@${myProf?.username || 'Someone'} started following you`,
+      });
     }
   };
 
