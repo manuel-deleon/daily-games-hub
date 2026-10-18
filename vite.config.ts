@@ -8,7 +8,7 @@ export default defineConfig({
     react(), 
     tailwindcss(),
     VitePWA({
-      registerType: 'autoUpdate',
+      registerType: 'prompt',
       injectRegister: 'auto',
       includeAssets: ['pwa-192x192.png', 'pwa-512x512.png'],
       manifest: {
