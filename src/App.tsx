@@ -11,6 +11,7 @@ import { Suggestions } from './pages/Suggestions';
 import { Updates } from './pages/Updates';
 import type { Session } from '@supabase/supabase-js';
 import { useTheme } from './hooks/useTheme';
+import { UpdateNotification } from './components/UpdateNotification';
 
 
 function App() {
@@ -72,6 +73,7 @@ function App() {
           {/* Catch all para URLs inexistentes */}
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
+        <UpdateNotification />
       </BrowserRouter>
     
   );
