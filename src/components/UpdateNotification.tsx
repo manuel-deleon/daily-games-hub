@@ -68,7 +68,7 @@ export function UpdateNotification() {
 
         <div className="flex-1 min-w-0 pr-1">
           <div className="flex items-center justify-between gap-2">
-            <h4 className="text-sm font-bold text-foreground">Update Available!</h4>
+            <h4 className="text-sm font-bold text-foreground">Update Available</h4>
             <button
               onClick={() => setNeedRefresh(false)}
               className="text-muted-foreground hover:text-foreground p-1 rounded-lg hover:bg-muted transition-colors cursor-pointer"
