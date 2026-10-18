@@ -2,7 +2,7 @@ import { useEffect } from 'react';
 import { Outlet, useNavigate, Link, useLocation } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '../lib/supabase';
-import { Flame, Bell, Users, Home, Shield, Lightbulb, Megaphone } from 'lucide-react';
+import { Flame, Bell, Users, Home, Shield, Lightbulb, Megaphone, User as UserIcon } from 'lucide-react';
 import type { Profile } from '../types';
 import { fetchUnreadCount } from '../lib/notifications';
 
@@ -114,6 +114,20 @@ export function Layout() {
                 <Megaphone className="w-4 h-4" />
                 <span>{'Updates'}</span>
               </Link>
+              <Link 
+                to="/notifications" 
+                className={`font-semibold flex items-center space-x-2 transition-colors relative ${isActive('/notifications') ? 'text-primary' : 'text-muted-foreground hover:text-foreground'}`}
+              >
+                <div className="relative">
+                  <Bell className="w-4 h-4" />
+                  {unreadCount > 0 && (
+                    <span className="absolute -top-1.5 -right-2 flex h-3.5 min-w-3.5 px-0.5 items-center justify-center rounded-full bg-red-500 text-[9px] font-bold text-white shadow-xs animate-pulse">
+                      {unreadCount > 9 ? '9+' : unreadCount}
+                    </span>
+                  )}
+                </div>
+                <span>{'Alerts'}</span>
+              </Link>
               {profile?.is_admin && (
                 <Link 
                   to="/admin" 
@@ -135,23 +149,20 @@ export function Layout() {
                 </div>
               )}
 
-              {/* Notifications Icon with Unread Count Badge */}
-              <Link 
-                to="/notifications" 
-                className={`relative p-2 rounded-xl border transition-all ${
-                  isActive('/notifications') 
-                    ? 'bg-primary/10 border-primary text-primary shadow-xs' 
-                    : 'bg-muted border-border text-muted-foreground hover:text-foreground hover:border-primary/40'
-                }`} 
-                title="Notifications"
-              >
-                <Bell className="w-5 h-5" />
-                {unreadCount > 0 && (
-                  <span className="absolute -top-1 -right-1 flex h-4 min-w-4 px-1 items-center justify-center rounded-full bg-red-500 text-[10px] font-extrabold text-white shadow-sm animate-pulse">
-                    {unreadCount > 9 ? '9+' : unreadCount}
-                  </span>
-                )}
-              </Link>
+              {/* User Profile Avatar */}
+              {profile && (
+                <Link 
+                  to="/profile" 
+                  className="h-9 w-9 rounded-full bg-muted border border-border flex items-center justify-center overflow-hidden hover:ring-2 hover:ring-primary hover:ring-offset-2 hover:ring-offset-background transition-all" 
+                  title={"My Profile"}
+                >
+                  {profile.avatar_url ? (
+                    <img src={profile.avatar_url} alt="Avatar" className="h-full w-full object-cover" />
+                  ) : (
+                    <UserIcon className="w-5 h-5 text-muted-foreground" />
+                  )}
+                </Link>
+              )}
             </div>
           </div>
         </div>
