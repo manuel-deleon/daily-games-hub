@@ -81,9 +81,9 @@ export function Notifications() {
       case 'follow':
         return <UserPlus className="w-3.5 h-3.5 text-blue-500" />;
       case 'suggestion_like':
-        return <ThumbsUp className="w-3.5 h-3.5 text-amber-500 fill-amber-500" />;
+        return <ThumbsUp className="w-3.5 h-3.5 text-amber-500" />;
       case 'suggestion_comment':
-        return <MessageSquare className="w-3.5 h-3.5 text-emerald-500 fill-emerald-500" />;
+        return <MessageSquare className="w-3.5 h-3.5 text-emerald-500" />;
       default:
         return <Bell className="w-3.5 h-3.5 text-primary" />;
     }
@@ -92,13 +92,13 @@ export function Notifications() {
   const getTypeBadgeClass = (type: string) => {
     switch (type) {
       case 'follow':
-        return 'bg-blue-500/10 border-blue-500/20';
+        return 'border-blue-500/30';
       case 'suggestion_like':
-        return 'bg-amber-500/10 border-amber-500/20';
+        return 'border-amber-500/30';
       case 'suggestion_comment':
-        return 'bg-emerald-500/10 border-emerald-500/20';
+        return 'border-emerald-500/30';
       default:
-        return 'bg-primary/10 border-primary/20';
+        return 'border-primary/30';
     }
   };
 
@@ -200,7 +200,7 @@ export function Notifications() {
                       item.actor?.username?.[0]?.toUpperCase() ?? '?'
                     )}
                   </div>
-                  <div className={`absolute -bottom-1 -right-1 p-1 rounded-full border ${getTypeBadgeClass(item.type)} bg-card shadow-xs`}>
+                  <div className={`absolute -bottom-1 -right-1 p-1 rounded-full border bg-white dark:bg-card shadow-xs ${getTypeBadgeClass(item.type)}`}>
                     {getTypeIcon(item.type)}
                   </div>
                 </div>
