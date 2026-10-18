@@ -2,7 +2,7 @@ import { useEffect } from 'react';
 import { Outlet, useNavigate, Link, useLocation } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '../lib/supabase';
-import { Flame, Bell, Users, Home, Shield, Lightbulb, Megaphone, User as UserIcon } from 'lucide-react';
+import { Flame, Bell, BellRing, Users, Home, Shield, Lightbulb, Megaphone, User as UserIcon } from 'lucide-react';
 import type { Profile } from '../types';
 import { fetchUnreadCount } from '../lib/notifications';
 
@@ -69,6 +69,7 @@ export function Layout() {
   }, [queryClient]);
 
   const isActive = (path: string) => location.pathname.startsWith(path);
+  const showUnreadBadge = unreadCount > 0 && !isActive('/notifications');
 
   return (
     <div className="min-h-screen bg-background text-foreground transition-colors duration-300 relative pb-20 sm:pb-0">
@@ -119,9 +120,13 @@ export function Layout() {
                 className={`font-semibold flex items-center space-x-2 transition-colors relative ${isActive('/notifications') ? 'text-primary' : 'text-muted-foreground hover:text-foreground'}`}
               >
                 <div className="relative">
-                  <Bell className="w-4 h-4" />
-                  {unreadCount > 0 && (
-                    <span className="absolute -top-1.5 -right-2 flex h-3.5 min-w-3.5 px-0.5 items-center justify-center rounded-full bg-red-500 text-[9px] font-bold text-white shadow-xs animate-pulse">
+                  {showUnreadBadge ? (
+                    <BellRing className="w-4 h-4 text-primary animate-pulse" />
+                  ) : (
+                    <Bell className="w-4 h-4" />
+                  )}
+                  {showUnreadBadge && (
+                    <span className="absolute -top-1.5 -right-2 flex h-3.5 min-w-3.5 px-0.5 items-center justify-center rounded-full bg-red-500 text-[9px] font-bold text-white shadow-xs">
                       {unreadCount > 9 ? '9+' : unreadCount}
                     </span>
                   )}
@@ -218,8 +223,12 @@ export function Layout() {
             className={`flex flex-col items-center justify-center w-full h-full space-y-1 ${isActive('/notifications') ? 'text-primary' : 'text-muted-foreground hover:text-foreground'}`}
           >
             <div className="relative">
-              <Bell className="w-5 h-5" />
-              {unreadCount > 0 && (
+              {showUnreadBadge ? (
+                <BellRing className="w-5 h-5 text-primary" />
+              ) : (
+                <Bell className="w-5 h-5" />
+              )}
+              {showUnreadBadge && (
                 <span className="absolute -top-1 -right-2 flex h-3.5 min-w-3.5 px-0.5 items-center justify-center rounded-full bg-red-500 text-[9px] font-bold text-white shadow-xs">
                   {unreadCount > 9 ? '9+' : unreadCount}
                 </span>
