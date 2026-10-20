@@ -121,31 +121,59 @@ export function Suggestions() {
     if (!session) return;
 
     const currentVote = myVotes[suggestionId];
-    if (currentVote === voteType) {
-      await supabase.from('suggestion_votes').delete().eq('suggestion_id', suggestionId).eq('user_id', session.user.id);
-    } else {
-      await supabase.from('suggestion_votes').upsert({
-        suggestion_id: suggestionId,
-        user_id: session.user.id,
-        vote_type: voteType,
-      }, { onConflict: 'suggestion_id, user_id' });
+    const isRemoving = currentVote === voteType;
+    const newVoteVal = isRemoving ? undefined : voteType;
+    const prevScoreDelta = (currentVote || 0);
+    const newScoreDelta = (newVoteVal || 0) - prevScoreDelta;
 
-      // Notify suggestion author on like/upvote
-      if (voteType === 1) {
-        const targetSuggestion = suggestions.find(s => s.id === suggestionId);
-        if (targetSuggestion && targetSuggestion.user_id && targetSuggestion.user_id !== session.user.id) {
-          createNotification({
-            userId: targetSuggestion.user_id,
-            actorId: session.user.id,
-            type: 'suggestion_like',
-            title: `@${profile?.username || 'Someone'} liked your feedback`,
-            message: targetSuggestion.title,
-            entityId: suggestionId,
-          });
+    // Optimistic UI update: instant feedback, no full page reload
+    setMyVotes(prev => {
+      const next = { ...prev };
+      if (isRemoving) {
+        delete next[suggestionId];
+      } else {
+        next[suggestionId] = voteType;
+      }
+      return next;
+    });
+
+    setSuggestions(prev => prev.map(s => {
+      if (s.id === suggestionId) {
+        return { ...s, score: (s.score ?? 0) + newScoreDelta };
+      }
+      return s;
+    }));
+
+    try {
+      if (isRemoving) {
+        await supabase.from('suggestion_votes').delete().eq('suggestion_id', suggestionId).eq('user_id', session.user.id);
+      } else {
+        await supabase.from('suggestion_votes').upsert({
+          suggestion_id: suggestionId,
+          user_id: session.user.id,
+          vote_type: voteType,
+        }, { onConflict: 'suggestion_id, user_id' });
+
+        // Notify suggestion author on like/upvote
+        if (voteType === 1) {
+          const targetSuggestion = suggestions.find(s => s.id === suggestionId);
+          if (targetSuggestion && targetSuggestion.user_id && targetSuggestion.user_id !== session.user.id) {
+            createNotification({
+              userId: targetSuggestion.user_id,
+              actorId: session.user.id,
+              type: 'suggestion_like',
+              title: `@${profile?.username || 'Someone'} liked your feedback`,
+              message: targetSuggestion.title,
+              entityId: suggestionId,
+            });
+          }
         }
       }
+    } catch (err) {
+      console.error('Error saving vote:', err);
+      // Revert if failed
+      loadData();
     }
-    await loadData();
   };
 
   // ── Submit ──────────────────────────────────────────────────────────────
@@ -205,12 +233,13 @@ export function Suggestions() {
   const fetchThreadComments = async (suggestionId: string) => {
     setCommentError(null);
     try {
-      // 1. Fetch comments directly (not dependent on PostgREST foreign key cache)
+      // 1. Fetch comments directly (up to 100 per thread)
       const { data: comments, error: commentsError } = await supabase
         .from('suggestion_comments')
         .select('*')
         .eq('suggestion_id', suggestionId)
-        .order('created_at', { ascending: true });
+        .order('created_at', { ascending: true })
+        .limit(100);
 
       if (commentsError) {
         console.error('Error fetching comments:', commentsError);

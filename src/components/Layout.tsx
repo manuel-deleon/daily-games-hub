@@ -42,20 +42,27 @@ export function Layout() {
     return () => window.removeEventListener('profileUpdated', handleProfileUpdated);
   }, [queryClient]);
 
-  // Fetch unread notifications count (refetches periodically)
+  // Fetch unread notifications count (cached, invalidated via filtered Realtime)
   const { data: unreadCount = 0 } = useQuery<number>({
     queryKey: ['unread-notifications-count'],
     queryFn: fetchUnreadCount,
-    refetchInterval: 30000,
+    staleTime: 60000,
   });
 
-  // Realtime listener for incoming notifications
+  // Realtime listener for incoming notifications (strictly filtered for current user)
   useEffect(() => {
+    if (!profile?.id) return;
+
     const channel = supabase
-      .channel('layout_notifications_changes')
+      .channel(`user_notifications_${profile.id}`)
       .on(
         'postgres_changes',
-        { event: '*', schema: 'public', table: 'notifications' },
+        {
+          event: '*',
+          schema: 'public',
+          table: 'notifications',
+          filter: `user_id=eq.${profile.id}`,
+        },
         () => {
           queryClient.invalidateQueries({ queryKey: ['unread-notifications-count'] });
           queryClient.invalidateQueries({ queryKey: ['notifications'] });
@@ -66,7 +73,7 @@ export function Layout() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [queryClient]);
+  }, [profile?.id, queryClient]);
 
   const isActive = (path: string) => location.pathname.startsWith(path);
   const showUnreadBadge = unreadCount > 0 && !isActive('/notifications');
