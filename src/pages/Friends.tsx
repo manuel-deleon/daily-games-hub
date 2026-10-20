@@ -88,7 +88,8 @@ export function Friends() {
       .select('completed_date, share_text')
       .eq('user_id', selectedUser.id)
       .eq('game_id', game.id)
-      .order('completed_date', { ascending: false });
+      .order('completed_date', { ascending: false })
+      .limit(90);
     
     setHistoryProgress(data || []);
   };
@@ -116,21 +117,25 @@ export function Friends() {
 
       setMyMatchingGameId(myGame ? myGame.id : null);
 
-      // 2. Fetch friend's progress
+      // 2. Fetch friend's progress (last 90 days)
       const { data: friendProgress } = await supabase
         .from('daily_progress')
         .select('completed_date, share_text')
         .eq('user_id', selectedUser.id)
-        .eq('game_id', friendGame.id);
+        .eq('game_id', friendGame.id)
+        .order('completed_date', { ascending: false })
+        .limit(90);
 
-      // 3. Fetch my progress (if I have this game in my catalog)
+      // 3. Fetch my progress (if I have this game in my catalog - last 90 days)
       let myProgress: { completed_date: string; share_text: string | null }[] = [];
       if (myGame) {
         const { data: mProg } = await supabase
           .from('daily_progress')
           .select('completed_date, share_text')
           .eq('user_id', currentUser)
-          .eq('game_id', myGame.id);
+          .eq('game_id', myGame.id)
+          .order('completed_date', { ascending: false })
+          .limit(90);
         if (mProg) myProgress = mProg;
       }
 

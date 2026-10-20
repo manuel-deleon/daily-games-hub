@@ -14,6 +14,14 @@ export function Dashboard() {
     const day = String(d.getDate()).padStart(2, '0');
     return `${y}-${m}-${day}`;
   };
+  // Helper to extract storage path for cleanup
+  const extractStoragePath = (publicUrl: string, bucket: string): string | null => {
+    const marker = `/${bucket}/`;
+    const idx = publicUrl.indexOf(marker);
+    if (idx === -1) return null;
+    return publicUrl.substring(idx + marker.length);
+  };
+
   // Helper to get logo or favicon
   const getGameLogo = (game: any) => {
     const url = game.custom_logo_url || game.global_games?.logo_url;
@@ -42,19 +50,6 @@ export function Dashboard() {
       if (session) setUserId(session.user.id);
     });
   }, []);
-
-  // --- Fire-and-forget cleanup of old daily_progress (>90 days) ---
-  useEffect(() => {
-    if (!userId) return;
-    const cleanup = async () => {
-      try {
-        await supabase.rpc('cleanup_old_progress');
-      } catch (e) {
-        // Silently ignore errors — cleanup is best-effort
-      }
-    };
-    cleanup();
-  }, [userId]);
 
   // --- React Query: User Games ---
   const { data: games = [], isLoading: isLoadingGames } = useQuery<Game[]>({
@@ -179,7 +174,8 @@ export function Dashboard() {
       .select('completed_date, share_text, won')
       .eq('user_id', session.user.id)
       .eq('game_id', game.id)
-      .order('completed_date', { ascending: false });
+      .order('completed_date', { ascending: false })
+      .limit(90);
     
     if (!error && data) {
       setHistoryProgress(data);
@@ -189,7 +185,8 @@ export function Dashboard() {
         .select('completed_date, share_text')
         .eq('user_id', session.user.id)
         .eq('game_id', game.id)
-        .order('completed_date', { ascending: false });
+        .order('completed_date', { ascending: false })
+        .limit(90);
       setHistoryProgress(fallback.data || []);
     }
   };
@@ -228,6 +225,14 @@ export function Dashboard() {
   };
 
   const uploadLogo = async (file: File): Promise<string> => {
+    // Delete previous custom logo if it exists to avoid storage waste
+    if (editingGame?.custom_logo_url) {
+      const oldPath = extractStoragePath(editingGame.custom_logo_url, 'game-logos');
+      if (oldPath) {
+        supabase.storage.from('game-logos').remove([oldPath]).catch(e => console.warn('Could not remove old logo:', e));
+      }
+    }
+
     const fileExt = file.name.split('.').pop();
     const fileName = `${Math.random().toString(36).substring(2)}-${Date.now()}.${fileExt}`;
     const filePath = `${fileName}`;

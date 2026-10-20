@@ -12,12 +12,12 @@ export function UpdateNotification() {
     onRegistered(registration) {
       if (!registration) return;
 
-      // Check for updates every 15 minutes
+      // Check for updates periodically (every 60 minutes) - tab focus/visibility already checks on return
       setInterval(() => {
         registration.update().catch((err: unknown) => {
           console.warn('Failed to check for SW update:', err);
         });
-      }, 15 * 60 * 1000);
+      }, 60 * 60 * 1000);
 
       // Check for updates when user returns to tab
       const handleFocus = () => {

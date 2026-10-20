@@ -1,6 +1,8 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-import { Shield, Users, Gamepad2, Activity, Trash2, Edit, Save, X, Search, AlertTriangle } from 'lucide-react';
+import { Shield, Users, Gamepad2, Activity, Trash2, Edit, Save, X, Search, AlertTriangle, ChevronLeft, ChevronRight } from 'lucide-react';
+
+const PAGE_SIZE = 25;
 
 
 export function Admin() {
@@ -14,6 +16,10 @@ export function Admin() {
   
   const [searchUsers, setSearchUsers] = useState('');
   const [searchGames, setSearchGames] = useState('');
+
+  // Pagination states
+  const [gamesPage, setGamesPage] = useState(1);
+  const [usersPage, setUsersPage] = useState(1);
 
   const [editingGame, setEditingGame] = useState<any | null>(null);
   const [editingUser, setEditingUser] = useState<any | null>(null);
@@ -147,6 +153,15 @@ export function Admin() {
   const filteredGames = globalGames.filter(g => (g.name || '').toLowerCase().includes(searchGames.toLowerCase()) || (g.url || '').toLowerCase().includes(searchGames.toLowerCase()));
   const filteredUsers = users.filter(u => (u.username || '').toLowerCase().includes(searchUsers.toLowerCase()) || (u.full_name || '').toLowerCase().includes(searchUsers.toLowerCase()));
 
+  // Paged slices
+  const totalGamesPages = Math.max(1, Math.ceil(filteredGames.length / PAGE_SIZE));
+  const currentGamesPage = Math.min(gamesPage, totalGamesPages);
+  const pagedGames = filteredGames.slice((currentGamesPage - 1) * PAGE_SIZE, currentGamesPage * PAGE_SIZE);
+
+  const totalUsersPages = Math.max(1, Math.ceil(filteredUsers.length / PAGE_SIZE));
+  const currentUsersPage = Math.min(usersPage, totalUsersPages);
+  const pagedUsers = filteredUsers.slice((currentUsersPage - 1) * PAGE_SIZE, currentUsersPage * PAGE_SIZE);
+
   return (
     <div className="max-w-5xl mx-auto space-y-8 animate-in fade-in duration-500">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -194,7 +209,7 @@ export function Admin() {
           <div className="p-4 border-b border-border bg-muted/30">
             <div className="relative max-w-sm">
               <Search className="absolute left-3 top-2.5 w-5 h-5 text-muted-foreground" />
-              <input type="text" placeholder="Search games by name or URL..." value={searchGames} onChange={e => setSearchGames(e.target.value)} className="w-full pl-10 pr-4 py-2 border border-border rounded-xl bg-background text-foreground" />
+              <input type="text" placeholder="Search games by name or URL..." value={searchGames} onChange={e => { setSearchGames(e.target.value); setGamesPage(1); }} className="w-full pl-10 pr-4 py-2 border border-border rounded-xl bg-background text-foreground" />
             </div>
           </div>
           <div className="overflow-x-auto">
@@ -208,7 +223,7 @@ export function Admin() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
-                {filteredGames.map(game => (
+                {pagedGames.map(game => (
                   <tr key={game.id} className="hover:bg-muted/30 transition-colors">
                     <td className="p-4"><img src={game.logo_url || 'https://via.placeholder.com/40'} alt="logo" className="w-10 h-10 rounded-lg object-cover" /></td>
                     <td className="p-4 font-bold">{game.name}</td>
@@ -230,6 +245,29 @@ export function Admin() {
               </tbody>
             </table>
           </div>
+          {totalGamesPages > 1 && (
+            <div className="flex items-center justify-between p-4 border-t border-border bg-muted/20">
+              <span className="text-xs font-semibold text-muted-foreground">
+                Page {currentGamesPage} of {totalGamesPages} ({filteredGames.length} games)
+              </span>
+              <div className="flex items-center space-x-2">
+                <button
+                  onClick={() => setGamesPage(p => Math.max(1, p - 1))}
+                  disabled={currentGamesPage === 1}
+                  className="p-1.5 rounded-lg border border-border bg-background disabled:opacity-40 hover:bg-muted transition-colors cursor-pointer"
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                </button>
+                <button
+                  onClick={() => setGamesPage(p => Math.min(totalGamesPages, p + 1))}
+                  disabled={currentGamesPage >= totalGamesPages}
+                  className="p-1.5 rounded-lg border border-border bg-background disabled:opacity-40 hover:bg-muted transition-colors cursor-pointer"
+                >
+                  <ChevronRight className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
@@ -238,7 +276,7 @@ export function Admin() {
           <div className="p-4 border-b border-border bg-muted/30">
             <div className="relative max-w-sm">
               <Search className="absolute left-3 top-2.5 w-5 h-5 text-muted-foreground" />
-              <input type="text" placeholder="Search users by name..." value={searchUsers} onChange={e => setSearchUsers(e.target.value)} className="w-full pl-10 pr-4 py-2 border border-border rounded-xl bg-background text-foreground" />
+              <input type="text" placeholder="Search users by name..." value={searchUsers} onChange={e => { setSearchUsers(e.target.value); setUsersPage(1); }} className="w-full pl-10 pr-4 py-2 border border-border rounded-xl bg-background text-foreground" />
             </div>
           </div>
           <div className="overflow-x-auto">
@@ -252,7 +290,7 @@ export function Admin() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
-                {filteredUsers.map(user => (
+                {pagedUsers.map(user => (
                   <tr key={user.id} className="hover:bg-muted/30 transition-colors">
                     <td className="p-4">
                       {user.avatar_url ? <img src={user.avatar_url} className="w-10 h-10 rounded-full object-cover" /> : <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center font-bold">{user.username.charAt(0).toUpperCase()}</div>}
@@ -270,6 +308,29 @@ export function Admin() {
               </tbody>
             </table>
           </div>
+          {totalUsersPages > 1 && (
+            <div className="flex items-center justify-between p-4 border-t border-border bg-muted/20">
+              <span className="text-xs font-semibold text-muted-foreground">
+                Page {currentUsersPage} of {totalUsersPages} ({filteredUsers.length} users)
+              </span>
+              <div className="flex items-center space-x-2">
+                <button
+                  onClick={() => setUsersPage(p => Math.max(1, p - 1))}
+                  disabled={currentUsersPage === 1}
+                  className="p-1.5 rounded-lg border border-border bg-background disabled:opacity-40 hover:bg-muted transition-colors cursor-pointer"
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                </button>
+                <button
+                  onClick={() => setUsersPage(p => Math.min(totalUsersPages, p + 1))}
+                  disabled={currentUsersPage >= totalUsersPages}
+                  className="p-1.5 rounded-lg border border-border bg-background disabled:opacity-40 hover:bg-muted transition-colors cursor-pointer"
+                >
+                  <ChevronRight className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
