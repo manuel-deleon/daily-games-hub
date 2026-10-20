@@ -10,7 +10,26 @@ import { createNotification } from '../lib/notifications';
 // ─── Types ────────────────────────────────────────────────────────────────────
 type FeedbackType = 'idea' | 'bug' | 'question' | 'other';
 type SortMode = 'score' | 'newest' | 'oldest';
-type StatusFilter = 'pending' | 'working' | 'implemented' | 'rejected';
+type StatusFilter = 'working' | 'pending' | 'rejected' | 'implemented';
+
+const STATUS_GROUPS: {
+  key: StatusFilter;
+  label: string;
+  dotColor: string;
+  activeClass: string;
+}[] = [
+  { key: 'working', label: 'Working on it', dotColor: 'bg-amber-500', activeClass: 'bg-amber-500 text-white border-amber-500' },
+  { key: 'pending', label: 'Pending', dotColor: 'bg-primary', activeClass: 'bg-primary text-primary-foreground border-primary' },
+  { key: 'rejected', label: 'Rejected', dotColor: 'bg-red-500', activeClass: 'bg-red-500 text-white border-red-500' },
+  { key: 'implemented', label: 'Implemented', dotColor: 'bg-[#709176]', activeClass: 'bg-[#709176] text-white border-[#709176]' },
+];
+
+const STATUS_PRIORITY: Record<string, number> = {
+  working: 0,
+  pending: 1,
+  rejected: 2,
+  implemented: 3,
+};
 
 const FEEDBACK_TYPES: { value: FeedbackType; label: string; icon: React.ReactNode; color: string }[] = [
   { value: 'idea',     label: 'Idea',     icon: <Lightbulb className="w-4 h-4" />, color: 'text-yellow-500 bg-yellow-500/10 border-yellow-500/30' },
@@ -322,18 +341,35 @@ export function Suggestions() {
 
   // ── Filtering + Sorting ──────────────────────────────────────────────────
   let filtered = suggestions.filter(s => {
-    if (selectedStatuses.length > 0 && !selectedStatuses.includes(s.status)) return false;
+    const sStatus = (s.status || 'pending') as StatusFilter;
+    if (selectedStatuses.length > 0 && !selectedStatuses.includes(sStatus)) return false;
     if (selectedTypes.length > 0 && !selectedTypes.includes(s.feedback_type)) return false;
     if (onlyMine && s.user_id !== profile?.id) return false;
     return true;
   });
 
   filtered = [...filtered].sort((a, b) => {
-    if (sortMode === 'score')  return (b.score ?? 0) - (a.score ?? 0);
+    const statusA = STATUS_PRIORITY[a.status || 'pending'] ?? 1;
+    const statusB = STATUS_PRIORITY[b.status || 'pending'] ?? 1;
+    if (statusA !== statusB) {
+      return statusA - statusB;
+    }
+
+    if (sortMode === 'score') {
+      const scoreDiff = (b.score ?? 0) - (a.score ?? 0);
+      if (scoreDiff !== 0) return scoreDiff;
+      return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+    }
     if (sortMode === 'newest') return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
     if (sortMode === 'oldest') return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
     return 0;
   });
+
+  // Group sorted suggestions by status (Working on it -> Pending -> Rejected -> Implemented)
+  const groupedSuggestions = STATUS_GROUPS.map(g => ({
+    ...g,
+    items: filtered.filter(s => (s.status || 'pending') === g.key),
+  })).filter(g => g.items.length > 0);
 
   const activeFiltersCount = selectedStatuses.length + selectedTypes.length + (onlyMine ? 1 : 0) + (sortMode !== 'score' ? 1 : 0);
 
@@ -446,12 +482,7 @@ export function Suggestions() {
             >
               All
             </button>
-            {([
-              { key: 'pending', label: 'Pending', activeClass: 'bg-primary text-primary-foreground border-primary' },
-              { key: 'working', label: 'Working on it', activeClass: 'bg-amber-500 text-white border-amber-500' },
-              { key: 'implemented', label: 'Implemented', activeClass: 'bg-[#709176] text-white border-[#709176]' },
-              { key: 'rejected', label: 'Rejected', activeClass: 'bg-red-500 text-white border-red-500' }
-            ] as const).map(f => {
+            {STATUS_GROUPS.map(f => {
               const isSelected = selectedStatuses.includes(f.key);
               return (
                 <button
@@ -574,14 +605,32 @@ export function Suggestions() {
       </div>
 
       {/* ── Suggestion List ── */}
-      <div className="space-y-3">
+      <div className="space-y-6">
         {filtered.length === 0 ? (
           <div className="text-center py-12 bg-card rounded-2xl border border-border">
             <SlidersHorizontal className="w-12 h-12 text-muted-foreground mx-auto mb-3 opacity-30" />
             <p className="text-muted-foreground font-medium">No suggestions found with these filters.</p>
           </div>
         ) : (
-          filtered.map(s => {
+          groupedSuggestions.map(group => (
+            <div key={group.key} className="space-y-3">
+              {/* Group Header - shown when displaying multiple statuses (e.g. default 'All') */}
+              {selectedStatuses.length !== 1 && (
+                <div className="flex items-center gap-2 pt-2 pb-1">
+                  <span className={`w-2.5 h-2.5 rounded-full ${group.dotColor}`} />
+                  <h2 className="text-xs font-black uppercase tracking-wider text-muted-foreground">
+                    {group.label}
+                  </h2>
+                  <span className="text-[11px] font-bold text-muted-foreground bg-muted border border-border px-2 py-0.5 rounded-full">
+                    {group.items.length}
+                  </span>
+                  <div className="h-px bg-border flex-1 ml-2" />
+                </div>
+              )}
+
+              {/* Suggestions in this group */}
+              <div className="space-y-3">
+                {group.items.map(s => {
             const ft = getFeedbackType(s.feedback_type);
             return (
               <div
@@ -647,10 +696,10 @@ export function Suggestions() {
                         onChange={e => handleStatusChange(s.id, e.target.value)}
                         className="text-xs font-bold px-2 py-1.5 bg-background border border-border rounded-lg outline-none cursor-pointer"
                       >
+                        <option value="working">Working on it</option>
                         <option value="pending">Pending</option>
-                        <option value="working">Working</option>
-                        <option value="implemented">Implemented</option>
                         <option value="rejected">Rejected</option>
+                        <option value="implemented">Implemented</option>
                       </select>
                     )}
                     {(profile?.id === s.user_id || profile?.is_admin) && (
@@ -666,7 +715,10 @@ export function Suggestions() {
                 )}
               </div>
             );
-          })
+          })}
+              </div>
+            </div>
+          ))
         )}
       </div>
 
